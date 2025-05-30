@@ -1,0 +1,16 @@
+{
+	"name": "api-worker",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy --minify",
+		"cf-typegen": "wrangler types --env-interface CloudflareBindings"
+	},
+	"dependencies": {
+		"@octokit/request": "^10.0.2",
+		"hono": "^4.9.7"
+	},
+	"devDependencies": {
+		"@types/node": "^24.5.1",
+		"wrangler": "^4.37.1"
+	}
+}
