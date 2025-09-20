@@ -6,17 +6,18 @@
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "api-worker",
 	"main": "src/index.ts",
-	"compatibility_date": "2025-05-25",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"compatibility_date": "2025-09-15",
 	"observability": {
 		"enabled": true
 	},
 	"workers_dev": false,
-	"routes": [
-		{
-		"pattern": "api.fossbilling.net",
-		"custom_domain": true
-		}
-	],
+	"placement": {
+		"mode": "smart"
+	},
+	"preview_urls": true,
 
 	/**
 	 * Bindings
@@ -24,6 +25,12 @@
 	 * databases, object storage, AI inference, real-time communication and more.
 	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
 	 */
+	 "kv_namespaces": [
+		{
+			"binding": "CACHE_KV",
+			"id": "0771957093ae481b9cd974ffa83f8263"
+		}
+	 ],
 
 	/**
 	 * Environment Variables
