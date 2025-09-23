@@ -15,4 +15,7 @@ app.route("/releases/v1", releasesV1);
 // Central Alert Service
 app.route("/central-alerts/v1", centralAlertsV1);
 
+// Version Service
+app.route("/versions/v1", versionsV1);
+
 export default app;
