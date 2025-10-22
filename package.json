@@ -7,7 +7,7 @@
 	},
 	"dependencies": {
 		"@octokit/request": "^10.0.2",
-		"hono": "^4.9.7",
+		"hono": "^4.10.2",
 		"semver": "^7.7.2"
 	},
 	"devDependencies": {
