@@ -1,3 +1,15 @@
+/**
+ * Release API - v1
+ * 
+ * This module defines the Release API.
+ * It provides an endpoint to retrieve a list of FOSSBilling releases
+ * along with their support status.
+ * 
+ * NOTE: This endpoint is deprecated and will be removed (after 31-Dec-2025).
+ * 
+ * @license AGPL-3.0
+ */
+
 import { Hono } from 'hono';
 import { cache } from 'hono/cache'
 import { cors } from 'hono/cors'

@@ -1,3 +1,13 @@
+/**
+ * FOSSBilling API Worker - Versions Service (v1)
+ * 
+ * This service provides endpoints to retrieve FOSSBilling release information
+ * directly from the GitHub repository. It supports fetching all releases,
+ * specific release details, and building changelogs for updates.
+ * 
+ * @license AGPL-3.0
+ */
+
 import { bearerAuth } from 'hono/bearer-auth'
 import { Hono } from 'hono';
 import { cache } from 'hono/cache'

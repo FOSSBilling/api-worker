@@ -1,3 +1,11 @@
+/**
+ * Central Alerts Interface Definitions - v1
+ * 
+ * Defines the structure of central alerts used in FOSSBilling.
+ * 
+ * @license AGPL-3.0
+ */
+
 export type CentralAlert = {
     id: string;
     title: string;
