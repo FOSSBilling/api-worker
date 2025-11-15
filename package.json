@@ -4,7 +4,9 @@
 		"cf-typegen": "wrangler types --env-interface CloudflareBindings",
 		"dev": "wrangler dev",
 		"deploy": "wrangler deploy --minify",
-		"tests": "vitest run"
+		"test": "vitest run",
+		"test:watch": "vitest watch",
+		"test:coverage": "vitest run --coverage"
 	},
 	"dependencies": {
 		"@octokit/request": "^10.0.2",
@@ -15,6 +17,7 @@
 		"@cloudflare/vitest-pool-workers": "^0.10.0",
 		"@types/node": "^24.5.2",
 		"@types/semver": "^7.7.1",
+		"@vitest/coverage-istanbul": "~3.2.0",
 		"vitest": "~3.2.0",
 		"wrangler": "^4.37.1"
 	}

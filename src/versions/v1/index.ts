@@ -35,10 +35,10 @@ versionsV1.use('/*',
 
 /**
  * Retrieve all FOSSBilling releases.
- * 
+ *
  * Returns a JSON response containing all available FOSSBilling releases (in ascending order),
  * with caching enabled (24 hours) and ETag support for efficient client-side caching.
- * 
+ *
  * @returns Promise<Response> JSON response with releases data, error code, and message.
  */
 versionsV1.get('/', cache({cacheName: 'versions-api-v1', cacheControl: 'max-age: 86400'}), etag(), prettyJSON(), async (c) => {
@@ -52,75 +52,55 @@ versionsV1.get('/', cache({cacheName: 'versions-api-v1', cacheControl: 'max-age:
 });
 
 /**
- * Retrieve a specific FOSSBilling release by version.
- * 
- * Returns a JSON response containing details for a specific FOSSBilling release.
- * Supports 'latest' parameter to get the most recent release, or a specific version tag.
- * Includes caching (24 hours) and ETag support for efficient client-side caching.
- * 
- * @param string version The version tag or 'latest'.
- * 
- * @returns Promise<Response> JSON response with release data, error code, and message (404 if version not found).
+ * Force update the releases cache.
+ *
+ * Requires a valid bearer token for authorization.
+ * Returns a JSON response indicating success or failure of the cache update.
+ *
+ * NOTE: This route must be defined before /:version to avoid conflicts.
+ *
+ * @route GET /update
+ * @returns Promise<Response> JSON response with result, error code, and message.
  */
-versionsV1.get('/:version', cache({cacheName: 'versions-api-v1', cacheControl: 'max-age: 86400'}), etag(), prettyJSON(), async (c) => {
-    const version = c.req.param('version');
-    const releases = await getReleases();
-    
-    // Handle case where no releases are available.
-    if (Object.keys(releases).length === 0) {
-        c.status(500);
-        return c.json({
-            'result': null,
-            'error_code': 500,
-            'message': 'Could not retrieve release information.'
-        });
-    }
+versionsV1.get('/update',
+    async (c, next) => {
+        const bearer = bearerAuth({ token: c.env.UPDATE_TOKEN });
+        return bearer(c, next);
+    },
+    async (c) => {
+        try {
+            // Force update the releases cache.
+            const releases = await getReleases(true);
 
-    // If 'latest' is requested, return the latest release (last in ascending sorted order).
-    if (version === 'latest') {
-        c.status(200);
-        
-        return c.json({
-            // Get the sorted keys and safely access the last element.
-            'result': (() => {
-                const sortedKeys = Object.keys(releases).sort(semverCompare);
-                const lastKey = sortedKeys.at(-1);
-                return lastKey ? releases[lastKey] : null;
-            })(),
-            'error_code': 0,
-            'message': null
-        });
-    }
-    // If specific version exists, return its details.
-    else if (version in releases) {
-        c.status(200);
-        
-        return c.json({
-            'result': releases[version],
-            'error_code': 0,
-            'message': null
-        });
-    }
-    // If version not found, return 404 error.
-    else {
-        c.status(404);
+            const releaseCount = Object.keys(releases).length;
 
-        return c.json({
-            'result': null,
-            'error_code': 404,
-            'message': `FOSSBilling version ${version} does not appear to exist.`
-        });
+            c.status(200);
+            return c.json({
+                'result': `Releases cache updated successfully with ${releaseCount} releases.`,
+                'error_code': 0,
+                'message': null
+            });
+        } catch (error) {
+            c.status(500);
+            return c.json({
+                'result': null,
+                'error_code': 500,
+                'message': 'Failed to update releases cache: ' + (error instanceof Error ? error.message : String(error))
+            });
+        }
     }
-});
+);
 
-/** 
+/**
  * Retrieve changelog entries for all releases newer than the specified version.
- * 
+ *
  * Returns a JSON response containing the combined changelog entries for all.
  * FOSSBilling releases that are newer than the provided version.
- * 
+ *
+ * NOTE: This route must be defined before /:version to avoid conflicts.
+ *
  * @param string current The current version to compare against.
- * 
+ *
  * @returns Promise<Response> JSON response with assembled changelog, error code, and message.
  */
 versionsV1.get('/build_changelog/:current', cache({cacheName: 'versions-api-v1', cacheControl: 'max-age: 86400'}), etag(), prettyJSON(), async (c) => {
@@ -136,7 +116,7 @@ versionsV1.get('/build_changelog/:current', cache({cacheName: 'versions-api-v1',
             'message': `'${current}' is not a valid semantic version.`
         });
     }
-    
+
     // Sort release keys in descending order (newest first) using semverCompare
     const sortedReleaseKeys = Object.keys(releases).sort((a, b) => semverCompare(b, a));
 
@@ -145,7 +125,7 @@ versionsV1.get('/build_changelog/:current', cache({cacheName: 'versions-api-v1',
     for (const version of sortedReleaseKeys) {
         if (semverGt(version, current)) {
             let changelog = releases[version].changelog;
-            
+
             // Handle missing changelog
             if (!changelog) {
                 changelog = `## ${version}\n`;
@@ -170,42 +150,68 @@ versionsV1.get('/build_changelog/:current', cache({cacheName: 'versions-api-v1',
 });
 
 /**
- * Force update the releases cache.
+ * Retrieve a specific FOSSBilling release by version.
  *
- * Requires a valid bearer token for authorization.
- * Returns a JSON response indicating success or failure of the cache update.
+ * Returns a JSON response containing details for a specific FOSSBilling release.
+ * Supports 'latest' parameter to get the most recent release, or a specific version tag.
+ * Includes caching (24 hours) and ETag support for efficient client-side caching.
  *
- * @route GET /update
- * @returns Promise<Response> JSON response with result, error code, and message.
+ * NOTE: This route uses a parameter and must be defined AFTER specific routes like /update and /build_changelog.
+ *
+ * @param string version The version tag or 'latest'.
+ *
+ * @returns Promise<Response> JSON response with release data, error code, and message (404 if version not found).
  */
-versionsV1.get('/update',
-    async (c, next) => {
-        const bearer = bearerAuth({ token: c.env.UPDATE_TOKEN });
-        return bearer(c, next);
-    },
-    async (c) => {
-        try {
-            // Force update the releases cache.
-            const releases = await getReleases(true);
-            
-            const releaseCount = Object.keys(releases).length;
-            
-            c.status(200);
-            return c.json({
-                'result': `Releases cache updated successfully with ${releaseCount} releases.`,
-                'error_code': 0,
-                'message': null
-            });
-        } catch (error) {
-            c.status(500);
-            return c.json({
-                'result': null,
-                'error_code': 500,
-                'message': 'Failed to update releases cache: ' + (error instanceof Error ? error.message : String(error))
-            });
-        }
+versionsV1.get('/:version', cache({cacheName: 'versions-api-v1', cacheControl: 'max-age: 86400'}), etag(), prettyJSON(), async (c) => {
+    const version = c.req.param('version');
+    const releases = await getReleases();
+
+    // Handle case where no releases are available.
+    if (Object.keys(releases).length === 0) {
+        c.status(500);
+        return c.json({
+            'result': null,
+            'error_code': 500,
+            'message': 'Could not retrieve release information.'
+        });
     }
-);
+
+    // If 'latest' is requested, return the latest release (last in ascending sorted order).
+    if (version === 'latest') {
+        c.status(200);
+
+        return c.json({
+            // Get the sorted keys and safely access the last element.
+            'result': (() => {
+                const sortedKeys = Object.keys(releases).sort(semverCompare);
+                const lastKey = sortedKeys.at(-1);
+                return lastKey ? releases[lastKey] : null;
+            })(),
+            'error_code': 0,
+            'message': null
+        });
+    }
+    // If specific version exists, return its details.
+    else if (version in releases) {
+        c.status(200);
+
+        return c.json({
+            'result': releases[version],
+            'error_code': 0,
+            'message': null
+        });
+    }
+    // If version not found, return 404 error.
+    else {
+        c.status(404);
+
+        return c.json({
+            'result': null,
+            'error_code': 404,
+            'message': `FOSSBilling version ${version} does not appear to exist.`
+        });
+    }
+});
 
 export default versionsV1;
 
