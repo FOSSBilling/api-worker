@@ -1,17 +1,5 @@
-/**
- * Test Mock Helpers
- *
- * Utilities for setting up and cleaning up mocks in tests
- *
- * @license AGPL-3.0
- */
-
 import { vi } from 'vitest';
 
-/**
- * Suppress console output during tests
- * Returns a cleanup function to restore console
- */
 export function suppressConsole() {
   const originalError = console.error;
   const originalLog = console.log;
@@ -28,9 +16,6 @@ export function suppressConsole() {
   };
 }
 
-/**
- * Create a mock fetch response
- */
 export function createMockFetchResponse(data: unknown, ok = true) {
   return {
     ok,
@@ -41,9 +26,6 @@ export function createMockFetchResponse(data: unknown, ok = true) {
   };
 }
 
-/**
- * Setup GitHub API mock with standard responses
- */
 export function setupGitHubApiMock(
   ghRequest: any,
   githubReleases: any[],

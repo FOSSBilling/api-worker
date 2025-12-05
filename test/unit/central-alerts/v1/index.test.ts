@@ -1,9 +1,3 @@
-/**
- * Tests for FOSSBilling API Worker - Central Alerts Service (v1)
- *
- * @license AGPL-3.0
- */
-
 import { describe, it, expect } from 'vitest';
 import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
 import app from '../../../../src';
@@ -33,7 +27,6 @@ describe('Central Alerts API v1', () => {
       const data = await response.json();
       const alerts = data.result.alerts;
 
-      // Should match the imported CentralAlerts data
       expect(alerts).toEqual(CentralAlerts);
       expect(alerts.length).toBe(CentralAlerts.length);
     });
@@ -46,7 +39,6 @@ describe('Central Alerts API v1', () => {
       const data = await response.json();
       const alerts = data.result.alerts;
 
-      // Verify each alert has required fields
       alerts.forEach((alert: any) => {
         expect(alert).toHaveProperty('id');
         expect(alert).toHaveProperty('title');
@@ -58,10 +50,7 @@ describe('Central Alerts API v1', () => {
         expect(alert).toHaveProperty('include_preview_branch');
         expect(alert).toHaveProperty('datetime');
 
-        // Verify type is one of the allowed values
         expect(['success', 'info', 'warning', 'danger']).toContain(alert.type);
-
-        // Verify dismissible is boolean
         expect(typeof alert.dismissible).toBe('boolean');
       });
     });
@@ -74,7 +63,6 @@ describe('Central Alerts API v1', () => {
       const data = await response.json();
       const alerts = data.result.alerts;
 
-      // Should contain the SQL injection alert
       const sqlAlert = alerts.find((alert: any) => alert.id === '1');
       expect(sqlAlert).toBeTruthy();
       expect(sqlAlert.type).toBe('danger');
@@ -90,13 +78,11 @@ describe('Central Alerts API v1', () => {
       const data = await response.json();
       const alerts = data.result.alerts;
 
-      // SQL injection alert should have buttons
       const sqlAlert = alerts.find((alert: any) => alert.id === '1');
       expect(sqlAlert.buttons).toBeTruthy();
       expect(Array.isArray(sqlAlert.buttons)).toBe(true);
       expect(sqlAlert.buttons.length).toBeGreaterThan(0);
 
-      // Verify button structure
       sqlAlert.buttons.forEach((button: any) => {
         expect(button).toHaveProperty('text');
         expect(button).toHaveProperty('link');
@@ -109,7 +95,6 @@ describe('Central Alerts API v1', () => {
       const response = await app.request('/central-alerts/v1/list/', {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      // Should redirect (301) to remove trailing slash
       expect(response.status).toBe(301);
       const location = response.headers.get('Location');
       expect(location).toContain('/central-alerts/v1/list');
@@ -127,7 +112,6 @@ describe('Central Alerts API v1', () => {
       await waitOnExecutionContext(ctx2);
       const data2 = await response2.json();
 
-      // Both responses should be identical
       expect(data1).toEqual(data2);
     });
 
@@ -140,7 +124,6 @@ describe('Central Alerts API v1', () => {
       const alerts = data.result.alerts;
 
       alerts.forEach((alert: any) => {
-        // Verify datetime is valid ISO 8601 format
         const date = new Date(alert.datetime);
         expect(date.toString()).not.toBe('Invalid Date');
         expect(alert.datetime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
@@ -162,7 +145,6 @@ describe('Central Alerts API v1', () => {
       const response = await app.request('/central-alerts/v1/', {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      // Should redirect (301) to remove trailing slash
       expect(response.status).toBe(301);
       const location = response.headers.get('Location');
       expect(location).toContain('/central-alerts/v1');

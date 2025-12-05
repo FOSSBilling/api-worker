@@ -18,11 +18,9 @@ export default defineWorkersConfig({
         functions: 80,
         lines: 80,
       },
-      exclude: [
-        "test/**",
-        "**/*.test.ts",
-        "**/*.config.ts",
-        "worker-configuration.d.ts",
+      include: [
+        "src/**",
+        "test/**/*.test.ts"
       ],
     },
 

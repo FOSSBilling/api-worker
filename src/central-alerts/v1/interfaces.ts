@@ -1,11 +1,3 @@
-/**
- * Central Alerts Interface Definitions - v1
- * 
- * Defines the structure of central alerts used in FOSSBilling.
- * 
- * @license AGPL-3.0
- */
-
 export type CentralAlert = {
     id: string;
     title: string;
@@ -20,5 +12,5 @@ export type CentralAlert = {
         link: string;
         type?: 'success' | 'info' | 'warning' | 'danger';
     }[];
-    datetime: string; // Use the ISO 8601 format. The easies way is to just open a browser and type "new Date().toISOString()" in the console.
+    datetime: string;
 }
