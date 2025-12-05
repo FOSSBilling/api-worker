@@ -1,71 +1,28 @@
 # FOSSBilling API Worker
 
-A Cloudflare Worker built with [Hono](https://hono.dev/) providing multiple API endpoints for FOSSBilling version management, release information, and central alerts.
+Cloudflare Worker providing multiple API endpoints for FOSSBilling version management, release information, and central alerts.
 
 ## Overview
 
-- **Version Service** – Retrieve available FOSSBilling releases and version details from GitHub.
+This worker provides three main services:
+
+- **Versions Service** – Retrieve available FOSSBilling releases and version details from GitHub, including download URLs, PHP version requirements, and changelogs.
 - **Releases Service** – Get release information with support status tracking (deprecated, maintained for backward compatibility).
 - **Central Alerts Service** – Manage and distribute system-wide alerts to FOSSBilling instances.
 
-## Getting Started
+## API Endpoints
 
-### Prerequisites
+### Versions Service (`/versions/v1`)
 
-- Node.js 24+
-- npm or yarn
-- Wrangler CLI
+- `GET /versions/v1` - Get all available FOSSBilling releases
+- `GET /versions/v1/:version` - Get details for a specific version (supports `latest`)
+- `GET /versions/v1/build_changelog/:current` - Build changelog from current version to latest
+- `GET /versions/v1/update` - Update releases cache (requires bearer token)
 
-### Installation
+### Releases Service (`/releases/v1`) - Deprecated
 
-```bash
-npm install
-```
+- `GET /releases/v1` - Get releases with support status (deprecated, use versions service instead)
 
-### Development
+### Central Alerts Service (`/central-alerts/v1`)
 
-Start the local development server:
-
-```bash
-npm run dev
-```
-
-This will start a Wrangler dev environment on `http://localhost:8787` by default.
-
-### Running Tests
-
-Execute the test suite:
-
-```bash
-npm run tests
-```
-
-### Type Generation
-
-Generate TypeScript types based on your Wrangler configuration:
-
-```bash
-npm run cf-typegen
-```
-
-This creates types for Cloudflare bindings (KV, Durable Objects, etc.) that are used in `CloudflareBindings`.
-
-## Development Guide
-
-### Using Hono with Cloudflare Bindings
-
-The application uses TypeScript generics to provide type safety for Cloudflare bindings:
-
-```typescript
-const app = new Hono<{ Bindings: CloudflareBindings }>();
-```
-
-## Environment Variables & Secrets
-
-Sensitive data should be stored as secrets using Wrangler:
-
-```bash
-npx wrangler secret put MY_SECRET
-```
-
-Access secrets in your Worker via `env.MY_SECRET`.
+- `GET /central-alerts/v1/list` - Get all active system alerts
