@@ -409,6 +409,10 @@ describe('Versions API v1', () => {
       env.CACHE_KV.get = originalGet;
       env.CACHE_KV.put = originalPut;
     });
+
+
+
+
   });
 
   describe('Error Handling', () => {
@@ -531,6 +535,44 @@ describe('Versions API v1', () => {
       const data = await response.json();
 
       expect(data.result).toEqual({});
+    });
+
+    it('should handle mixed releases with and without FOSSBilling.zip asset', async () => {
+      const mixedReleases = [
+        mockGitHubReleases[0], // Has zip asset
+        {
+          ...mockGitHubReleases[1],
+          assets: [], // No zip asset
+        },
+        mockGitHubReleases[2], // Has zip asset
+      ];
+
+      vi.mocked(ghRequest).mockReset();
+      vi.mocked(ghRequest).mockImplementation(async (route: string, options?: any) => {
+        if (route === 'GET /repos/{owner}/{repo}/releases') {
+          return { data: mixedReleases } as any;
+        }
+        if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
+          const content = btoa(JSON.stringify(mockComposerJson));
+          return { data: { content } } as any;
+        }
+        throw new Error('Unexpected route');
+      });
+
+      await env.CACHE_KV.delete('gh-fossbilling-releases');
+
+      const ctx = createExecutionContext();
+      const response = await app.request('/versions/v1', {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+
+      // Should only include releases with zip assets
+      expect(Object.keys(data.result)).toHaveLength(2);
+      expect(data.result).toHaveProperty(mockGitHubReleases[0].tag_name);
+      expect(data.result).toHaveProperty(mockGitHubReleases[2].tag_name);
+      expect(data.result).not.toHaveProperty(mockGitHubReleases[1].tag_name);
     });
   });
 
