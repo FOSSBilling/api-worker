@@ -33,7 +33,7 @@ GET /releases/v1
     "versions": [
       {
         "version": "x.x.x",
-        "support": "insecure|outdated|latest"
+        "support": "supported|unsupported"
       }
     ]
   },

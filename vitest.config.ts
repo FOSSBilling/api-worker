@@ -16,12 +16,9 @@ export default defineWorkersConfig({
         statements: 80,
         branches: 75,
         functions: 80,
-        lines: 80,
+        lines: 80
       },
-      include: [
-        "src/**",
-        "test/**/*.test.ts"
-      ],
+      include: ["src/**", "test/**/*.test.ts"]
     },
 
     poolOptions: {
@@ -31,10 +28,10 @@ export default defineWorkersConfig({
           // Add test environment variables
           bindings: {
             GITHUB_TOKEN: "test-github-token",
-            UPDATE_TOKEN: "test-update-token",
-          },
-        },
-      },
-    },
-  },
+            UPDATE_TOKEN: "test-update-token"
+          }
+        }
+      }
+    }
+  }
 });

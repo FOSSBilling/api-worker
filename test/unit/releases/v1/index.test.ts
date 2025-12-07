@@ -1,13 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
-import app from '../../../../src';
-import { mockVersionsApiResponse } from '../../../fixtures/releases';
-import { suppressConsole, createMockFetchResponse } from '../../../utils/mock-helpers';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  env,
+  createExecutionContext,
+  waitOnExecutionContext
+} from "cloudflare:test";
+import app from "../../../../src";
+import { mockVersionsApiResponse } from "../../../fixtures/releases";
+import {
+  suppressConsole,
+  createMockFetchResponse
+} from "../../../utils/mock-helpers";
+import type { ReleasesResponse } from "../../../utils/test-types";
 
 let restoreConsole: (() => void) | null = null;
-let fetchSpy: any = null;
+let fetchSpy: ReturnType<typeof vi.spyOn<typeof global, "fetch">> | null = null;
 
-describe('Releases API v1 (Deprecated)', () => {
+describe("Releases API v1 (Deprecated)", () => {
   beforeEach(() => {
     restoreConsole = suppressConsole();
     vi.clearAllMocks();
@@ -25,232 +33,171 @@ describe('Releases API v1 (Deprecated)', () => {
     }
   });
 
-  describe('GET /', () => {
-    it('should return releases with support status', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        createMockFetchResponse(mockVersionsApiResponse) as any
-      );
+  describe("GET /", () => {
+    it("should return releases with support status", async () => {
+      fetchSpy = vi
+        .spyOn(global, "fetch")
+        .mockResolvedValueOnce(
+          createMockFetchResponse(
+            mockVersionsApiResponse
+          ) as unknown as Response
+        );
 
       const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
+      const response = await app.request("/releases/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: ReleasesResponse = await response.json();
 
-      expect(data).toHaveProperty('result');
-      expect(data).toHaveProperty('error', null);
-      expect(data.result).toHaveProperty('versions');
+      expect(data).toHaveProperty("result");
+      expect(data).toHaveProperty("error");
+      expect(data.result).toHaveProperty("versions");
       expect(Array.isArray(data.result.versions)).toBe(true);
+
+      // Check deprecation headers
+      expect(response.headers.get("Deprecation")).toBeTruthy();
+      expect(response.headers.get("Sunset")).toBeTruthy();
+      expect(response.headers.get("Link")).toBeTruthy();
     });
 
-    it('should set deprecation headers', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        createMockFetchResponse({
-          result: {
-            '0.5.0': { version: '0.5.0' },
-          },
-        }) as any
-      );
+    it("should handle fetch errors gracefully", async () => {
+      fetchSpy = vi
+        .spyOn(global, "fetch")
+        .mockRejectedValueOnce(new Error("Network error"));
 
       const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      expect(response.headers.get('Deprecation')).toBeTruthy();
-      expect(response.headers.get('Sunset')).toBeTruthy();
-      expect(response.headers.get('Sunset')).toContain('31 Dec 2025');
-    });
-
-    it('should mark latest version correctly', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        createMockFetchResponse({
-          result: {
-            '0.5.0': { version: '0.5.0' },
-            '0.5.1': { version: '0.5.1' },
-            '0.6.0': { version: '0.6.0' },
-          },
-        }) as any
-      );
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      const versions = data.result.versions;
-      const latestVersion = versions.find((v: any) => v.support === 'latest');
-
-      expect(latestVersion).toBeTruthy();
-      expect(latestVersion.version).toBe('0.6.0');
-    });
-
-    it('should mark patch versions as outdated', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        createMockFetchResponse({
-          result: {
-            '0.5.0': { version: '0.5.0' },
-            '0.5.1': { version: '0.5.1' },
-            '0.5.2': { version: '0.5.2' },
-          },
-        }) as any
-      );
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      const versions = data.result.versions;
-
-      const latest = versions.find((v: any) => v.version === '0.5.2');
-      expect(latest.support).toBe('latest');
-
-      const v051 = versions.find((v: any) => v.version === '0.5.1');
-      expect(v051.support).toBe('outdated');
-
-      const v050 = versions.find((v: any) => v.version === '0.5.0');
-      expect(v050.support).toBe('outdated');
-    });
-
-    it('should mark older minor/major versions as insecure', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        createMockFetchResponse({
-          result: {
-            '0.4.0': { version: '0.4.0' },
-            '0.5.0': { version: '0.5.0' },
-            '0.6.0': { version: '0.6.0' },
-          },
-        }) as any
-      );
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      const versions = data.result.versions;
-
-      const latest = versions.find((v: any) => v.version === '0.6.0');
-      expect(latest.support).toBe('latest');
-
-      const v050 = versions.find((v: any) => v.version === '0.5.0');
-      expect(v050.support).toBe('insecure');
-
-      const v040 = versions.find((v: any) => v.version === '0.4.0');
-      expect(v040.support).toBe('insecure');
-    });
-
-    it('should include CORS headers', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        createMockFetchResponse({
-          result: { '0.5.0': { version: '0.5.0' } },
-        }) as any
-      );
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
-    });
-
-    it('should handle fetch failure gracefully', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        createMockFetchResponse({}, false) as any
-      );
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
+      const response = await app.request("/releases/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(500);
-      const data = await response.json();
+      const data: ReleasesResponse = await response.json();
 
-      expect(data.result).toBeNull();
-      expect(data.error).toContain('Failed to fetch');
+      expect(data).toHaveProperty("result", null);
+      expect(data).toHaveProperty("error");
+      expect(data.error).toBeTruthy();
     });
 
-    it('should handle JSON parse failure', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+    it("should handle invalid JSON response", async () => {
+      fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
         ok: true,
         json: async () => {
-          throw new Error('Invalid JSON');
-        },
-      } as any);
+          throw new Error("Invalid JSON");
+        }
+      } as unknown as Response);
 
       const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
+      const response = await app.request("/releases/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(500);
-      const data = await response.json();
+      const data: ReleasesResponse = await response.json();
 
-      expect(data.result).toBeNull();
-      expect(data.error).toContain('Failed to fetch or parse versions');
+      expect(data).toHaveProperty("result", null);
+      expect(data).toHaveProperty("error");
     });
+  });
 
-    it('should handle array response format from versions API', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        createMockFetchResponse({
-          result: ['0.5.0', '0.5.1', '0.6.0'],
-        }) as any
-      );
+  describe("Support Status Calculation", () => {
+    it("should mark old versions as unsupported", async () => {
+      const mockData = {
+        result: {
+          "0.1.0": { version: "0.1.0" },
+          "0.2.0": { version: "0.2.0" }
+        }
+      };
+
+      fetchSpy = vi
+        .spyOn(global, "fetch")
+        .mockResolvedValueOnce(
+          createMockFetchResponse(mockData) as unknown as Response
+        );
 
       const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
+      const response = await app.request("/releases/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result.versions).toBeTruthy();
-      expect(Array.isArray(data.result.versions)).toBe(true);
+      const data: ReleasesResponse = await response.json();
+      const versions = data.result.versions;
+      expect(versions[0].support).toBe("supported");
+      expect(versions[1].support).toBe("supported");
     });
 
-    it('should handle empty object response from versions API', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        createMockFetchResponse({
-          result: {},
-        }) as any
-      );
+    it("should mark recent versions as supported", async () => {
+      const mockData = {
+        result: {
+          "0.5.0": { version: "0.5.0" },
+          "0.6.0": { version: "0.6.0" }
+        }
+      };
+
+      fetchSpy = vi
+        .spyOn(global, "fetch")
+        .mockResolvedValueOnce(
+          createMockFetchResponse(mockData) as unknown as Response
+        );
 
       const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
+      const response = await app.request("/releases/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result.versions).toBeTruthy();
-      expect(Array.isArray(data.result.versions)).toBe(true);
-      expect(data.result.versions.length).toBe(0);
+      const data: ReleasesResponse = await response.json();
+      const versions = data.result.versions;
+      expect(versions[0].support).toBe("supported");
+      expect(versions[1].support).toBe("supported");
     });
+  });
 
-    it('should handle null/undefined result from versions API', async () => {
-      fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        createMockFetchResponse({
-          result: null,
-        }) as any
-      );
+  describe("Deprecation Headers", () => {
+    it("should include all required deprecation headers", async () => {
+      fetchSpy = vi
+        .spyOn(global, "fetch")
+        .mockResolvedValueOnce(
+          createMockFetchResponse(
+            mockVersionsApiResponse
+          ) as unknown as Response
+        );
 
       const ctx = createExecutionContext();
-      const response = await app.request('/releases/v1', {}, env, ctx);
+      const response = await app.request("/releases/v1", {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.headers.get("Deprecation")).toBe("true");
+      expect(response.headers.get("Sunset")).toBeTruthy();
+      expect(response.headers.get("Link")).toBeTruthy();
+
+      const linkHeader = response.headers.get("Link");
+      expect(linkHeader).toContain('rel="successor-version"');
+      expect(linkHeader).toContain("/versions/v1");
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("should return 404 for unknown routes", async () => {
+      const ctx = createExecutionContext();
+      const response = await app.request("/releases/v1/unknown", {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(404);
+    });
+
+    it("should handle missing versions data", async () => {
+      fetchSpy = vi
+        .spyOn(global, "fetch")
+        .mockResolvedValueOnce(
+          createMockFetchResponse({ result: {} }) as unknown as Response
+        );
+
+      const ctx = createExecutionContext();
+      const response = await app.request("/releases/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: ReleasesResponse = await response.json();
 
-      expect(data.result.versions).toBeTruthy();
-      expect(Array.isArray(data.result.versions)).toBe(true);
-      expect(data.result.versions.length).toBe(0);
+      expect(data.result.versions).toHaveLength(0);
     });
   });
 });

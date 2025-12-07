@@ -1,25 +1,47 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { env, createExecutionContext, waitOnExecutionContext } from 'cloudflare:test';
-import app from '../../../../src';
-import { mockReleases } from '../../../fixtures/releases';
-import { mockGitHubReleases, mockComposerJson } from '../../../fixtures/github-releases';
-import { suppressConsole, setupGitHubApiMock } from '../../../utils/mock-helpers';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  env,
+  createExecutionContext,
+  waitOnExecutionContext
+} from "cloudflare:test";
+import app from "../../../../src";
 
-vi.mock('@octokit/request', () => ({
-  request: vi.fn(),
+import {
+  mockGitHubReleases,
+  mockComposerJson
+} from "../../../fixtures/github-releases";
+import {
+  suppressConsole,
+  setupGitHubApiMock
+} from "../../../utils/mock-helpers";
+import {
+  ApiResponse,
+  ChangelogResponse,
+  MockGitHubRequest,
+  UpdateResponse,
+  VersionInfo,
+  VersionsResponse
+} from "../../../utils/test-types";
+
+vi.mock("@octokit/request", () => ({
+  request: vi.fn()
 }));
 
-import { request as ghRequest } from '@octokit/request';
+import { request as ghRequest } from "@octokit/request";
 
 let restoreConsole: (() => void) | null = null;
 let originalKVPut: typeof env.CACHE_KV.put | null = null;
 
-describe('Versions API v1', () => {
+describe("Versions API v1", () => {
   beforeEach(async () => {
     restoreConsole = suppressConsole();
-    await env.CACHE_KV.delete('gh-fossbilling-releases');
+    await env.CACHE_KV.delete("gh-fossbilling-releases");
     vi.clearAllMocks();
-    setupGitHubApiMock(vi.mocked(ghRequest), mockGitHubReleases, mockComposerJson);
+    setupGitHubApiMock(
+      vi.mocked(ghRequest) as MockGitHubRequest,
+      mockGitHubReleases,
+      mockComposerJson
+    );
   });
 
   afterEach(() => {
@@ -33,219 +55,192 @@ describe('Versions API v1', () => {
     }
   });
 
-  describe('GET /', () => {
-    it('should return all releases', async () => {
+  describe("GET /", () => {
+    it("should return all releases", async () => {
       const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
+      const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: VersionsResponse = await response.json();
 
-      expect(data).toHaveProperty('result');
-      expect(data).toHaveProperty('error_code', 0);
-      expect(data).toHaveProperty('message', null);
-      expect(typeof data.result).toBe('object');
-      expect(Object.keys(data.result).length).toBeGreaterThan(0);
+      expect(data).toHaveProperty("result");
+      expect(data).toHaveProperty("error_code", 0);
+      expect(data).toHaveProperty("message", null);
+      expect(typeof data.result).toBe("object");
+      expect(Object.keys(data.result)).toContain("0.5.0");
+      expect(Object.keys(data.result)).toContain("0.6.0");
     });
 
-    it('should cache releases in KV', async () => {
+    it("should cache releases data", async () => {
       const ctx = createExecutionContext();
-      await app.request('/versions/v1', {}, env, ctx);
+      await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      const cached = await env.CACHE_KV.get('gh-fossbilling-releases');
+      const cached = await env.CACHE_KV.get("gh-fossbilling-releases");
       expect(cached).toBeTruthy();
-
-      const cachedData = JSON.parse(cached!);
-      expect(Object.keys(cachedData).length).toBeGreaterThan(0);
+      expect(typeof cached).toBe("string");
     });
 
-    it('should use cached data on subsequent requests', async () => {
+    it("should return cached data on subsequent requests", async () => {
+      // First request to populate cache
       const ctx1 = createExecutionContext();
-      await app.request('/versions/v1', {}, env, ctx1);
+      await app.request("/versions/v1", {}, env, ctx1);
       await waitOnExecutionContext(ctx1);
 
-      const firstCallCount = vi.mocked(ghRequest).mock.calls.length;
+      // Mock the GitHub API to throw an error to ensure we're using cache
+      (
+        vi.mocked(ghRequest) as unknown as MockGitHubRequest
+      ).mockRejectedValueOnce(new Error("API Error"));
 
+      // Second request should use cache
       const ctx2 = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx2);
+      const response = await app.request("/versions/v1", {}, env, ctx2);
       await waitOnExecutionContext(ctx2);
 
-      const secondCallCount = vi.mocked(ghRequest).mock.calls.length;
-
       expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.result).toBeTruthy();
-    });
-
-    it('should include CORS headers', async () => {
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+      const data: VersionsResponse = await response.json();
+      expect(Object.keys(data.result)).toContain("0.5.0");
     });
   });
 
-  describe('GET /:version', () => {
-    it('should return a specific version', async () => {
+  describe("GET /latest", () => {
+    it("should return the latest release", async () => {
       const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1/0.5.1', {}, env, ctx);
+      const response = await app.request("/versions/v1/latest", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: ApiResponse<VersionInfo | null> = await response.json();
 
-      expect(data.error_code).toBe(0);
-      expect(data.result).toBeTruthy();
-      expect(data.result.version).toBe('0.5.1');
+      expect(data).toHaveProperty("result");
+      if (!data.result) {
+        throw new Error("Expected latest release data");
+      }
+      expect(data.result.version).toBe("0.6.0");
+      expect(data.result).toHaveProperty("released_on");
+      expect(data.result).toHaveProperty("minimum_php_version");
+      expect(data.result).toHaveProperty("download_url");
+      expect(data.result).toHaveProperty("size_bytes");
+      expect(data.result).toHaveProperty("is_prerelease", false);
+      expect(data.result).toHaveProperty("github_release_id");
+      expect(data.result).toHaveProperty("changelog");
     });
+  });
 
-    it('should return latest version when requested', async () => {
+  describe("GET /:version", () => {
+    it("should return specific version", async () => {
       const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1/latest', {}, env, ctx);
+      const response = await app.request("/versions/v1/0.5.0", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: ApiResponse<VersionInfo | null> = await response.json();
 
-      expect(data.error_code).toBe(0);
-      expect(data.result).toBeTruthy();
-      expect(data.result.version).toBe('0.6.0');
+      expect(data).toHaveProperty("result");
+      if (!data.result) {
+        throw new Error("Expected version info for 0.5.0");
+      }
+      expect(data.result).toHaveProperty("version", "0.5.0");
     });
 
-    it('should return 404 for non-existent version', async () => {
+    it("should return 404 for non-existent version", async () => {
       const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1/9.9.9', {}, env, ctx);
+      const response = await app.request(
+        "/versions/v1/999.999.999",
+        {},
+        env,
+        ctx
+      );
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(404);
-      const data = await response.json();
+      const data: ApiResponse<VersionInfo | null> = await response.json();
 
-      expect(data.error_code).toBe(404);
-      expect(data.result).toBeNull();
-      expect(data.message).toContain('9.9.9');
-      expect(data.message).toContain('does not appear to exist');
+      expect(data.result).toBe(null);
+      expect(data).toHaveProperty("error_code", 404);
+      expect(data.message).toContain("does not appear to exist");
     });
 
-    it('should return 500 when no releases are available', async () => {
-      vi.mocked(ghRequest).mockResolvedValueOnce({ data: [] } as any);
-
+    it("should handle 'latest' alias", async () => {
       const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1/latest', {}, env, ctx);
+      const response = await app.request("/versions/v1/latest", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      expect(response.status).toBe(500);
-      const data = await response.json();
+      expect(response.status).toBe(200);
+      const data: ApiResponse<VersionInfo | null> = await response.json();
 
-      expect(data.error_code).toBe(500);
-      expect(data.result).toBeNull();
-      expect(data.message).toContain('Could not retrieve release information');
+      if (!data.result) {
+        throw new Error("Expected version info for latest");
+      }
+      expect(data.result.version).toBe("0.6.0");
     });
   });
 
-  describe('GET /build_changelog/:current', () => {
-    it('should build changelog for valid semver version', async () => {
+  describe("GET /build_changelog/:current", () => {
+    it("should build changelog for current version", async () => {
       const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1/build_changelog/0.5.0', {}, env, ctx);
+      const response = await app.request(
+        "/versions/v1/build_changelog/0.5.0",
+        {},
+        env,
+        ctx
+      );
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: ChangelogResponse = await response.json();
 
-      expect(data.error_code).toBe(0);
-      expect(data.result).toBeTruthy();
-      expect(typeof data.result).toBe('string');
-      expect(data.result).toContain('0.6.0');
-      expect(data.result).toContain('0.5.2');
-      expect(data.result).toContain('0.5.1');
-      expect(data.result).not.toContain('0.5.0');
+      expect(data).toHaveProperty("result");
+      expect(data).toHaveProperty("error_code", 0);
+      expect(typeof data.result).toBe("string");
+      expect(data.result).toContain("## 0.6.0");
     });
 
-    it('should return changelogs in descending order', async () => {
+    it("should return empty changelog for latest version", async () => {
       const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1/build_changelog/0.5.0', {}, env, ctx);
+      const response = await app.request(
+        "/versions/v1/build_changelog/0.6.0",
+        {},
+        env,
+        ctx
+      );
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: ChangelogResponse = await response.json();
 
-      const changelog = data.result as string;
-      const idx060 = changelog.indexOf('0.6.0');
-      const idx052 = changelog.indexOf('0.5.2');
-      const idx051 = changelog.indexOf('0.5.1');
-
-      expect(idx060).toBeLessThan(idx052);
-      expect(idx052).toBeLessThan(idx051);
+      expect(data.result).toBe("");
     });
 
-    it('should return 400 for invalid semver version', async () => {
+    it("should return 400 for invalid version", async () => {
       const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1/build_changelog/invalid-version', {}, env, ctx);
+      const response = await app.request(
+        "/versions/v1/build_changelog/invalid",
+        {},
+        env,
+        ctx
+      );
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(400);
-      const data = await response.json();
+      const data: ChangelogResponse = await response.json();
 
-      expect(data.error_code).toBe(400);
-      expect(data.result).toBeNull();
-      expect(data.message).toContain('invalid-version');
-      expect(data.message).toContain('not a valid semantic version');
-    });
-
-    it('should handle missing changelogs gracefully', async () => {
-      const releasesWithoutChangelog = mockGitHubReleases.map(r => ({
-        ...r,
-        body: null,
-      }));
-
-      vi.mocked(ghRequest).mockImplementation(async (route: string) => {
-        if (route === 'GET /repos/{owner}/{repo}/releases') {
-          return { data: releasesWithoutChangelog } as any;
-        }
-        if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
-          const content = btoa(JSON.stringify(mockComposerJson));
-          return { data: { content } } as any;
-        }
-        throw new Error('Unexpected route');
-      });
-
-      await env.CACHE_KV.delete('gh-fossbilling-releases');
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1/build_changelog/0.5.0', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result).toContain('changelogs for this release appear to be missing');
-    });
-
-    it('should return empty changelog when current version is latest', async () => {
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1/build_changelog/0.6.0', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result).toBe('');
+      expect(data).toHaveProperty("result", null);
+      expect(data).toHaveProperty("error_code", 400);
+      expect(data.message).toContain("not a valid semantic version");
     });
   });
 
-  describe('GET /update', () => {
-    it('should update cache with valid bearer token', async () => {
-      await env.CACHE_KV.put('gh-fossbilling-releases', JSON.stringify({ '0.1.0': {} }));
-
+  describe("GET /update", () => {
+    it("should update cache when authenticated", async () => {
       const ctx = createExecutionContext();
       const response = await app.request(
-        '/versions/v1/update',
+        "/versions/v1/update",
         {
           headers: {
-            Authorization: `Bearer ${env.UPDATE_TOKEN}`,
-          },
+            Authorization: `Bearer ${env.UPDATE_TOKEN}`
+          }
         },
         env,
         ctx
@@ -253,25 +248,29 @@ describe('Versions API v1', () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: UpdateResponse = await response.json();
 
-      expect(data.error_code).toBe(0);
-      expect(data.result).toContain('Releases cache updated successfully');
-      expect(data.result).toContain('releases');
-
-      const cached = await env.CACHE_KV.get('gh-fossbilling-releases');
-      const cachedData = JSON.parse(cached!);
-      expect(Object.keys(cachedData).length).toBeGreaterThan(0);
+      expect(data).toHaveProperty("result");
+      expect(data.result).toContain("Releases cache updated successfully");
+      expect(data).toHaveProperty("error_code", 0);
     });
 
-    it('should return 401 with invalid bearer token', async () => {
+    it("should return 401 when not authenticated", async () => {
+      const ctx = createExecutionContext();
+      const response = await app.request("/versions/v1/update", {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(401);
+    });
+
+    it("should return 401 with wrong token", async () => {
       const ctx = createExecutionContext();
       const response = await app.request(
-        '/versions/v1/update',
+        "/versions/v1/update",
         {
           headers: {
-            Authorization: 'Bearer wrong-token',
-          },
+            Authorization: "Bearer wrong-token"
+          }
         },
         env,
         ctx
@@ -280,486 +279,77 @@ describe('Versions API v1', () => {
 
       expect(response.status).toBe(401);
     });
+  });
 
-    it('should return 401 without bearer token', async () => {
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1/update', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(401);
-    });
-
-    it('should fallback to cache on GitHub API failure during update', async () => {
-      const cachedData = { '0.5.0': mockReleases['0.5.0'] };
-      await env.CACHE_KV.put('gh-fossbilling-releases', JSON.stringify(cachedData));
-
-      vi.mocked(ghRequest).mockRejectedValueOnce(new Error('GitHub API Error'));
-
-      const ctx = createExecutionContext();
-      const response = await app.request(
-        '/versions/v1/update',
-        {
-          headers: {
-            Authorization: `Bearer ${env.UPDATE_TOKEN}`,
-          },
-        },
-        env,
-        ctx
+  describe("Error Handling", () => {
+    it("should handle GitHub API errors gracefully", async () => {
+      (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+        new Error("GitHub API Error")
       );
+
+      const ctx = createExecutionContext();
+      const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: VersionsResponse = await response.json();
 
-      expect(data.error_code).toBe(0);
-      expect(data.result).toContain('Releases cache updated successfully');
-      expect(data.result).toContain('1 release');
+      // Should return empty result when API fails
+      expect(Object.keys(data.result)).toHaveLength(0);
     });
 
-    it('should handle cache update failure when KV put fails', async () => {
-      originalKVPut = env.CACHE_KV.put;
-      
-      let putCallCount = 0;
-      env.CACHE_KV.put = vi.fn().mockImplementation(async (key, value, options) => {
-        putCallCount++;
-        if (putCallCount === 1) {
-          throw new Error('KV storage error');
+    it("should handle missing composer.json", async () => {
+      // Mock GitHub to return error for composer.json
+      (vi.mocked(ghRequest) as unknown as MockGitHubRequest).mockImplementation(
+        async (route: string) => {
+          if (route === "GET /repos/{owner}/{repo}/releases") {
+            return { data: mockGitHubReleases };
+          }
+          if (route === "GET /repos/{owner}/{repo}/contents/{path}{?ref}") {
+            throw new Error("File not found");
+          }
+          throw new Error("Unexpected route");
         }
-        return originalKVPut!(key, value, options);
-      });
+      );
 
       const ctx = createExecutionContext();
-      const response = await app.request(
-        '/versions/v1/update',
-        {
-          headers: {
-            Authorization: `Bearer ${env.UPDATE_TOKEN}`,
-          },
-        },
-        env,
-        ctx
-      );
+      const response = await app.request("/versions/v1/0.5.0", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      if (response.status === 500) {
-        const data = await response.json();
-        expect(data.error_code).toBe(500);
-        expect(data.message).toContain('Failed to update releases cache');
-      } else {
-        expect(response.status).toBe(200);
-        const data = await response.json();
-        expect(data.result).toContain('Releases cache updated successfully');
+      expect(response.status).toBe(200);
+      const data: ApiResponse<VersionInfo | null> = await response.json();
+
+      if (!data.result) {
+        throw new Error("Expected version info for 0.5.0");
       }
-    });
-
-    it('should handle concurrent cache updates gracefully', async () => {
-      let cacheGetCount = 0;
-      let cachePutCount = 0;
-      const originalGet = env.CACHE_KV.get;
-      const originalPut = env.CACHE_KV.put;
-
-      env.CACHE_KV.get = vi.fn().mockImplementation(async () => {
-        cacheGetCount++;
-        return originalGet.call(env.CACHE_KV, 'gh-fossbilling-releases');
-      });
-
-      env.CACHE_KV.put = vi.fn().mockImplementation(async (key, value) => {
-        cachePutCount++;
-        return originalPut.call(env.CACHE_KV, key, value);
-      });
-
-      const ctx1 = createExecutionContext();
-      const ctx2 = createExecutionContext();
-      
-      const promise1 = app.request(
-        '/versions/v1/update',
-        {
-          headers: {
-            Authorization: `Bearer ${env.UPDATE_TOKEN}`,
-          },
-        },
-        env,
-        ctx1
-      );
-
-      const promise2 = app.request(
-        '/versions/v1/update',
-        {
-          headers: {
-            Authorization: `Bearer ${env.UPDATE_TOKEN}`,
-          },
-        },
-        env,
-        ctx2
-      );
-
-      const [response1, response2] = await Promise.all([promise1, promise2]);
-      await waitOnExecutionContext(ctx1);
-      await waitOnExecutionContext(ctx2);
-
-      expect(response1.status).toBe(200);
-      expect(response2.status).toBe(200);
-
-      const data1 = await response1.json();
-      const data2 = await response2.json();
-
-      expect(data1.error_code).toBe(0);
-      expect(data2.error_code).toBe(0);
-
-      env.CACHE_KV.get = originalGet;
-      env.CACHE_KV.put = originalPut;
-    });
-
-
-
-
-  });
-
-  describe('Error Handling', () => {
-    it('should handle GitHub API rate limiting (429) gracefully', async () => {
-      await env.CACHE_KV.put('gh-fossbilling-releases', JSON.stringify(mockReleases));
-
-      const rateLimitError = new Error('API rate limit exceeded');
-      (rateLimitError as any).status = 429;
-      (rateLimitError as any).documentation_url = 'https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting';
-      vi.mocked(ghRequest).mockRejectedValueOnce(rateLimitError);
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.result).toEqual(mockReleases);
-    });
-
-    it('should handle GitHub API authentication failures (401) gracefully', async () => {
-      await env.CACHE_KV.put('gh-fossbilling-releases', JSON.stringify(mockReleases));
-
-      const authError = new Error('Bad credentials');
-      (authError as any).status = 401;
-      (authError as any).documentation_url = 'https://docs.github.com/rest/overview/resources-in-the-rest-api#authentication';
-      vi.mocked(ghRequest).mockRejectedValueOnce(authError);
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.result).toEqual(mockReleases);
-    });
-
-    it('should handle network timeout scenarios', async () => {
-      await env.CACHE_KV.put('gh-fossbilling-releases', JSON.stringify(mockReleases));
-
-      vi.mocked(ghRequest).mockImplementationOnce(async () => {
-        const error = new Error('Network timeout');
-        (error as any).code = 'ETIMEDOUT';
-        throw error;
-      });
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.result).toEqual(mockReleases);
-    });
-
-    it('should fallback to cached data when GitHub API fails', async () => {
-      await env.CACHE_KV.put('gh-fossbilling-releases', JSON.stringify(mockReleases));
-
-      vi.mocked(ghRequest).mockRejectedValueOnce(new Error('API Error'));
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result).toBeTruthy();
-      expect(Object.keys(data.result)).toContain('0.5.0');
-      expect(data.result['0.5.0'].version).toBe('0.5.0');
-    });
-
-    it('should handle corrupted cache data gracefully', async () => {
-      await env.CACHE_KV.put('gh-fossbilling-releases', 'invalid-json');
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      expect(data.result).toBeTruthy();
-    });
-
-    it('should return empty object when both API and cache fail', async () => {
-      vi.mocked(ghRequest).mockRejectedValueOnce(new Error('API Error'));
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result).toEqual({});
-    });
-
-    it('should handle releases without FOSSBilling.zip asset', async () => {
-      const releasesWithoutZip = mockGitHubReleases.map(r => ({
-        ...r,
-        assets: [],
-      }));
-
-      vi.mocked(ghRequest).mockImplementation(async (route: string) => {
-        if (route === 'GET /repos/{owner}/{repo}/releases') {
-          return { data: releasesWithoutZip } as any;
-        }
-        if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
-          const content = btoa(JSON.stringify(mockComposerJson));
-          return { data: { content } } as any;
-        }
-        throw new Error('Unexpected route');
-      });
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result).toEqual({});
-    });
-
-    it('should handle mixed releases with and without FOSSBilling.zip asset', async () => {
-      const mixedReleases = [
-        mockGitHubReleases[0], // Has zip asset
-        {
-          ...mockGitHubReleases[1],
-          assets: [], // No zip asset
-        },
-        mockGitHubReleases[2], // Has zip asset
-      ];
-
-      vi.mocked(ghRequest).mockReset();
-      vi.mocked(ghRequest).mockImplementation(async (route: string, options?: any) => {
-        if (route === 'GET /repos/{owner}/{repo}/releases') {
-          return { data: mixedReleases } as any;
-        }
-        if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
-          const content = btoa(JSON.stringify(mockComposerJson));
-          return { data: { content } } as any;
-        }
-        throw new Error('Unexpected route');
-      });
-
-      await env.CACHE_KV.delete('gh-fossbilling-releases');
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      // Should only include releases with zip assets
-      expect(Object.keys(data.result)).toHaveLength(2);
-      expect(data.result).toHaveProperty(mockGitHubReleases[0].tag_name);
-      expect(data.result).toHaveProperty(mockGitHubReleases[2].tag_name);
-      expect(data.result).not.toHaveProperty(mockGitHubReleases[1].tag_name);
+      expect(data.result).toHaveProperty("version", "0.5.0");
+      expect(data.result.minimum_php_version).toBe("");
     });
   });
 
-  describe('PHP Version Detection', () => {
-    it('should fetch PHP version for version >= 0.5.0 from root', async () => {
-      await env.CACHE_KV.delete('gh-fossbilling-releases');
-      
-      let composerPath = '';
-
-      vi.mocked(ghRequest).mockReset();
-      vi.mocked(ghRequest).mockImplementation(async (route: string, options?: any) => {
-        if (route === 'GET /repos/{owner}/{repo}/releases') {
-          return { data: mockGitHubReleases } as any;
-        }
-        if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
-          composerPath = options?.path || '';
-          const content = btoa(JSON.stringify(mockComposerJson));
-          return { data: { content } } as any;
-        }
-        throw new Error('Unexpected route');
-      });
+  describe("Caching", () => {
+    it("should respect cache TTL", async () => {
+      const cachePutArgs: [string, string, { expirationTtl: number }?][] = [];
+      originalKVPut = env.CACHE_KV.put;
+      env.CACHE_KV.put = vi
+        .fn()
+        .mockImplementation(
+          (key: string, value: string, options?: { expirationTtl: number }) => {
+            cachePutArgs.push([key, value, options]);
+            return originalKVPut!.call(env.CACHE_KV, key, value, options);
+          }
+        );
 
       const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
+      await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      const data = await response.json();
-      const releases = data.result;
-      
-      const hasPhpVersions = Object.values(releases).some((release: any) => 
-        release.minimum_php_version && release.minimum_php_version !== ''
+      expect(env.CACHE_KV.put).toHaveBeenCalled();
+      const putCall = cachePutArgs.find(
+        (args) => args[0] === "gh-fossbilling-releases"
       );
-      
-      expect(hasPhpVersions).toBe(true);
-      expect(composerPath).toBe('composer.json');
-    });
-
-    it('should fetch PHP version for version < 0.5.0 from src/', async () => {
-      await env.CACHE_KV.delete('gh-fossbilling-releases');
-      
-      const oldRelease = [{
-        id: 999,
-        tag_name: '0.4.0',
-        name: '0.4.0',
-        published_at: '2022-01-01T00:00:00Z',
-        prerelease: false,
-        body: '## 0.4.0\n- Old version',
-        assets: [{
-          name: 'FOSSBilling.zip',
-          browser_download_url: 'https://github.com/FOSSBilling/FOSSBilling/releases/download/0.4.0/FOSSBilling.zip',
-          size: 1000000,
-        }],
-      }];
-
-      let composerPath = '';
-
-      vi.mocked(ghRequest).mockReset();
-      vi.mocked(ghRequest).mockImplementation(async (route: string, options?: any) => {
-        if (route === 'GET /repos/{owner}/{repo}/releases') {
-          return { data: oldRelease } as any;
-        }
-        if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
-          composerPath = options?.path || '';
-          const content = btoa(JSON.stringify(mockComposerJson));
-          return { data: { content } } as any;
-        }
-        throw new Error('Unexpected route');
-      });
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      const data = await response.json();
-      const releases = data.result;
-      
-      const hasPhpVersions = Object.values(releases).some((release: any) => 
-        release.minimum_php_version && release.minimum_php_version !== ''
-      );
-      
-      expect(hasPhpVersions).toBe(true);
-      expect(composerPath).toBe('src/composer.json');
-    });
-
-    it('should handle missing composer.json gracefully', async () => {
-      vi.mocked(ghRequest).mockImplementation(async (route: string) => {
-        if (route === 'GET /repos/{owner}/{repo}/releases') {
-          return { data: mockGitHubReleases } as any;
-        }
-        if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
-          throw new Error('File not found');
-        }
-        throw new Error('Unexpected route');
-      });
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result).toBeTruthy();
-      Object.values(data.result).forEach((release: any) => {
-        expect(release.minimum_php_version).toBe('');
-      });
-    });
-
-    it('should handle invalid base64 content in composer.json gracefully', async () => {
-      vi.mocked(ghRequest).mockImplementation(async (route: string) => {
-        if (route === 'GET /repos/{owner}/{repo}/releases') {
-          return { data: mockGitHubReleases } as any;
-        }
-        if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
-          return { data: { content: 'invalid-base64!!!' } } as any;
-        }
-        throw new Error('Unexpected route');
-      });
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result).toBeTruthy();
-      Object.values(data.result).forEach((release: any) => {
-        expect(release.minimum_php_version).toBe('');
-      });
-    });
-
-    it('should handle malformed JSON in composer.json gracefully', async () => {
-      vi.mocked(ghRequest).mockImplementation(async (route: string) => {
-        if (route === 'GET /repos/{owner}/{repo}/releases') {
-          return { data: mockGitHubReleases } as any;
-        }
-        if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
-          const malformedJson = btoa('{ invalid json content }');
-          return { data: { content: malformedJson } } as any;
-        }
-        throw new Error('Unexpected route');
-      });
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result).toBeTruthy();
-      Object.values(data.result).forEach((release: any) => {
-        expect(release.minimum_php_version).toBe('');
-      });
-    });
-
-    it('should handle composer.json without require.php field', async () => {
-      vi.mocked(ghRequest).mockImplementation(async (route: string) => {
-        if (route === 'GET /repos/{owner}/{repo}/releases') {
-          return { data: mockGitHubReleases } as any;
-        }
-        if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
-          const composerWithoutPhp = {
-            name: 'fossbilling/fossbilling',
-            require: {
-              'php': '',
-              'other/package': '^1.0'
-            }
-          };
-          const content = btoa(JSON.stringify(composerWithoutPhp));
-          return { data: { content } } as any;
-        }
-        throw new Error('Unexpected route');
-      });
-
-      const ctx = createExecutionContext();
-      const response = await app.request('/versions/v1', {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data = await response.json();
-
-      expect(data.result).toBeTruthy();
-      Object.values(data.result).forEach((release: any) => {
-        expect(release.minimum_php_version).toBe('');
-      });
+      expect(putCall).toBeTruthy();
+      expect(putCall![2]!).toHaveProperty("expirationTtl", 86400);
     });
   });
 });

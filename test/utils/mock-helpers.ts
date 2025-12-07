@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 export function suppressConsole() {
   const originalError = console.error;
@@ -22,27 +22,29 @@ export function createMockFetchResponse(data: unknown, ok = true) {
     json: async () => data,
     text: async () => JSON.stringify(data),
     status: ok ? 200 : 500,
-    statusText: ok ? 'OK' : 'Internal Server Error',
+    statusText: ok ? "OK" : "Internal Server Error"
   };
 }
 
 export function setupGitHubApiMock(
-  ghRequest: any,
-  githubReleases: any[],
-  composerJson: any
+  ghRequest: {
+    mockImplementation: (fn: (route: string) => Promise<unknown>) => void;
+  },
+  githubReleases: unknown[],
+  composerJson: Record<string, unknown>
 ) {
   ghRequest.mockImplementation(async (route: string) => {
-    if (route === 'GET /repos/{owner}/{repo}/releases') {
+    if (route === "GET /repos/{owner}/{repo}/releases") {
       return { data: githubReleases };
     }
-    if (route === 'GET /repos/{owner}/{repo}/contents/{path}{?ref}') {
+    if (route === "GET /repos/{owner}/{repo}/contents/{path}{?ref}") {
       const content = btoa(JSON.stringify(composerJson));
       return {
         data: {
-          content: content,
-        },
+          content: content
+        }
       };
     }
-    throw new Error('Unexpected route');
+    throw new Error("Unexpected route");
   });
 }
