@@ -60,6 +60,10 @@ describe("FOSSBilling API Worker - Main App", () => {
     // Clear KV cache before each test
     await env.CACHE_KV.delete("gh-fossbilling-releases");
 
+    // Set up UPDATE_TOKEN in AUTH_KV storage for tests
+    const testUpdateToken = "test-update-token-12345";
+    await env.AUTH_KV.put("update_token", testUpdateToken);
+
     // Mock D1 database binding for central alerts
     env.DB_CENTRAL_ALERTS = mockD1Database;
 
@@ -196,7 +200,7 @@ describe("FOSSBilling API Worker - Main App", () => {
         "/versions/v1/update",
         {
           headers: {
-            Authorization: `Bearer ${env.UPDATE_TOKEN}`
+            Authorization: "Bearer test-update-token-12345"
           }
         },
         env,
@@ -204,7 +208,7 @@ describe("FOSSBilling API Worker - Main App", () => {
       );
       await waitOnExecutionContext(ctx);
 
-      // Should be able to access UPDATE_TOKEN from context
+      // Should be able to access UPDATE_TOKEN from KV storage
       expect(response.status).toBe(200);
     });
   });

@@ -36,6 +36,11 @@ describe("Versions API v1", () => {
   beforeEach(async () => {
     restoreConsole = suppressConsole();
     await env.CACHE_KV.delete("gh-fossbilling-releases");
+
+    // Set up UPDATE_TOKEN in AUTH_KV storage for tests
+    const testUpdateToken = "test-update-token-12345";
+    await env.AUTH_KV.put("update_token", testUpdateToken);
+
     vi.clearAllMocks();
     setupGitHubApiMock(
       vi.mocked(ghRequest) as MockGitHubRequest,
@@ -239,7 +244,7 @@ describe("Versions API v1", () => {
         "/versions/v1/update",
         {
           headers: {
-            Authorization: `Bearer ${env.UPDATE_TOKEN}`
+            Authorization: "Bearer test-update-token-12345"
           }
         },
         env,

@@ -41,19 +41,13 @@ export class CentralAlertsDatabase {
 
     const result = await this.db.prepare(query).all();
 
-    if (!result.success) {
-      return { data: null, error: { message: "Failed to fetch alerts" } };
-    }
-
-    const alerts = (result.results || []).map(
-      (alert: Record<string, unknown>) => ({
-        ...alert,
-        buttons:
-          typeof alert.buttons === "string"
-            ? JSON.parse(alert.buttons)
-            : alert.buttons || []
-      })
-    ) as CentralAlertWithButtons[];
+    const alerts = result.results?.map((alert) => ({
+      ...alert,
+      buttons:
+        typeof alert.buttons === "string"
+          ? JSON.parse(alert.buttons)
+          : alert.buttons || []
+    })) as CentralAlertWithButtons[];
 
     return { data: alerts, error: null };
   }
@@ -85,19 +79,13 @@ export class CentralAlertsDatabase {
 
     const result = await this.db.prepare(query).bind(version, version).all();
 
-    if (!result.success) {
-      return { data: null, error: { message: "Failed to fetch alerts" } };
-    }
-
-    const alerts = (result.results || []).map(
-      (alert: Record<string, unknown>) => ({
-        ...alert,
-        buttons:
-          typeof alert.buttons === "string"
-            ? JSON.parse(alert.buttons)
-            : alert.buttons || []
-      })
-    ) as CentralAlertWithButtons[];
+    const alerts = result.results?.map((alert) => ({
+      ...alert,
+      buttons:
+        typeof alert.buttons === "string"
+          ? JSON.parse(alert.buttons)
+          : alert.buttons || []
+    })) as CentralAlertWithButtons[];
 
     return { data: alerts, error: null };
   }

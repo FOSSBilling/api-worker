@@ -7,8 +7,8 @@ declare namespace Cloudflare {
   }
   interface Env {
     CACHE_KV: KVNamespace;
+    AUTH_KV: KVNamespace;
     GITHUB_TOKEN: string;
-    UPDATE_TOKEN: string;
     DB_CENTRAL_ALERTS: D1Database;
   }
 }
@@ -20,7 +20,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 };
 declare namespace NodeJS {
   interface ProcessEnv extends StringifyValues<
-    Pick<Cloudflare.Env, "GITHUB_TOKEN" | "UPDATE_TOKEN">
+    Pick<Cloudflare.Env, "GITHUB_TOKEN">
   > {}
 }
 

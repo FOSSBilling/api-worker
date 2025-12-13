@@ -14,6 +14,9 @@ import {
 } from "semver";
 import { Releases, ReleaseDetails } from "./interfaces";
 
+// Cache for UPDATE_TOKEN to avoid repeated KV lookups
+let updateTokenCache: string | null = null;
+
 const versionsV1 = new Hono<{ Bindings: CloudflareBindings }>();
 
 versionsV1.use(
@@ -23,6 +26,32 @@ versionsV1.use(
   }),
   trimTrailingSlash()
 );
+
+/**
+ * Get the UPDATE_TOKEN from AUTH_KV storage with caching
+ * @param c Hono context with KV bindings
+ * @returns Promise<string> The update token
+ */
+async function getUpdateToken(
+  c: Context<{ Bindings: CloudflareBindings }>
+): Promise<string> {
+  // Return cached token if available
+  if (updateTokenCache) {
+    return updateTokenCache;
+  }
+
+  // Get token from AUTH_KV storage
+  const token = await c.env.AUTH_KV.get("update_token");
+
+  if (!token) {
+    throw new Error("UPDATE_TOKEN not found in AUTH_KV storage");
+  }
+
+  // Cache the token for future requests
+  updateTokenCache = token;
+
+  return token;
+}
 
 versionsV1.get(
   "/",
@@ -41,7 +70,8 @@ versionsV1.get(
 versionsV1.get(
   "/update",
   async (c, next) => {
-    const bearer = bearerAuth({ token: c.env.UPDATE_TOKEN });
+    const token = await getUpdateToken(c);
+    const bearer = bearerAuth({ token });
     return bearer(c, next);
   },
   async (c) => {
@@ -168,11 +198,7 @@ async function getReleases(
   const cacheTTL = 86400;
 
   if (cachedReleases && !updateCache) {
-    try {
-      return JSON.parse(cachedReleases);
-    } catch {
-      // Invalid cache data, fetch fresh
-    }
+    return JSON.parse(cachedReleases);
   }
 
   try {
@@ -231,11 +257,7 @@ async function getReleases(
     return releases;
   } catch {
     if (cachedReleases) {
-      try {
-        return JSON.parse(cachedReleases);
-      } catch {
-        return {};
-      }
+      return JSON.parse(cachedReleases);
     }
     return {};
   }
@@ -275,9 +297,9 @@ export async function getReleaseMinPhpVersion(
           .trim();
       }
     }
-
-    return "";
   } catch {
-    return "";
+    // Ignore errors and return empty string
   }
+
+  return "";
 }

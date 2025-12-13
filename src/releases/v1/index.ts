@@ -38,7 +38,7 @@ releasesV1.get(
 
     const rawVersions = Array.isArray(releases.result)
       ? releases.result.flat().filter(Boolean)
-      : Object.keys((releases.result as Record<string, unknown>) || {});
+      : Object.keys(releases.result || {});
     const latestVersion = rawVersions[rawVersions.length - 1];
     const versions: FOSSBillingVersion[] = rawVersions.map((version) => {
       const versionStr = String(version);

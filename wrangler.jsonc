@@ -35,6 +35,10 @@
     {
       "binding": "CACHE_KV",
       "id": "0771957093ae481b9cd974ffa83f8263"
+    },
+    {
+      "binding": "AUTH_KV",
+      "id": "2750aba268824ff28fc8171cc75f4215"
     }
   ]
 

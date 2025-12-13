@@ -36,7 +36,6 @@ const validateRequiredFields = (body: CreateAlertRequest) => {
   return null;
 };
 
-// GET /list - Get all alerts
 centralAlertsV1.get("/list", async (c) => {
   const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);
   const { data, error } = await db.getAllAlerts();
@@ -60,7 +59,6 @@ centralAlertsV1.get("/list", async (c) => {
   });
 });
 
-// GET /version/:version - Get alerts for specific FOSSBilling version
 centralAlertsV1.get("/version/:version", async (c) => {
   const version = c.req.param("version");
   const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);
@@ -85,7 +83,6 @@ centralAlertsV1.get("/version/:version", async (c) => {
   });
 });
 
-// GET /:id - Get specific alert by ID
 centralAlertsV1.get("/:id", async (c) => {
   const id = c.req.param("id");
   const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);
@@ -110,7 +107,6 @@ centralAlertsV1.get("/:id", async (c) => {
   });
 });
 
-// POST / - Create new alert (requires authentication)
 centralAlertsV1.post("/", async (c) => {
   const body: CreateAlertRequest = await c.req.json();
   const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);
@@ -145,7 +141,6 @@ centralAlertsV1.post("/", async (c) => {
   );
 });
 
-// PUT /:id - Update existing alert (requires authentication)
 centralAlertsV1.put("/:id", async (c) => {
   const id = c.req.param("id");
   const body: CreateAlertRequest = await c.req.json();
@@ -172,7 +167,6 @@ centralAlertsV1.put("/:id", async (c) => {
   });
 });
 
-// DELETE /:id - Delete alert (requires authentication)
 centralAlertsV1.delete("/:id", async (c) => {
   const id = c.req.param("id");
   const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);

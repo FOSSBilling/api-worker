@@ -118,7 +118,15 @@ export interface TestEnv {
     ) => Promise<void>;
     delete: (key: string) => Promise<void>;
   };
-  UPDATE_TOKEN: string;
+  AUTH_KV: {
+    get: (key: string) => Promise<string | null>;
+    put: (
+      key: string,
+      value: string,
+      options?: { expirationTtl: number }
+    ) => Promise<void>;
+    delete: (key: string) => Promise<void>;
+  };
   DB_CENTRAL_ALERTS: unknown;
 }
 
