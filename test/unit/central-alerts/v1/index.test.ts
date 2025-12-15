@@ -173,15 +173,20 @@ describe("Central Alerts API v1", () => {
       const data: CentralAlertsResponse = await response.json();
       const alerts = data.result.alerts;
 
-      alerts.forEach((alert: { min_fossbilling_version: string; max_fossbilling_version: string }) => {
-        const isInRange =
-          "0.5.0" >= alert.min_fossbilling_version &&
-          "0.5.0" <= alert.max_fossbilling_version;
-        const isUniversal =
-          alert.min_fossbilling_version === "0.0.0" &&
-          alert.max_fossbilling_version === "9999.9999.9999";
-        expect(isInRange || isUniversal).toBe(true);
-      });
+      alerts.forEach(
+        (alert: {
+          min_fossbilling_version: string;
+          max_fossbilling_version: string;
+        }) => {
+          const isInRange =
+            "0.5.0" >= alert.min_fossbilling_version &&
+            "0.5.0" <= alert.max_fossbilling_version;
+          const isUniversal =
+            alert.min_fossbilling_version === "0.0.0" &&
+            alert.max_fossbilling_version === "9999.9999.9999";
+          expect(isInRange || isUniversal).toBe(true);
+        }
+      );
     });
 
     it("should return empty array for version with no alerts", async () => {
@@ -203,12 +208,7 @@ describe("Central Alerts API v1", () => {
   describe("GET /:id", () => {
     it("should return specific alert by ID", async () => {
       const ctx = createExecutionContext();
-      const response = await app.request(
-        "/central-alerts/v1/1",
-        {},
-        env,
-        ctx
-      );
+      const response = await app.request("/central-alerts/v1/1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
@@ -328,9 +328,7 @@ describe("Central Alerts API v1", () => {
         max_fossbilling_version: "0.9.0",
         include_preview_branch: false,
         datetime: "2023-01-01T00:00:00Z",
-        buttons: [
-          { text: "Learn More", link: "https://example.com" }
-        ]
+        buttons: [{ text: "Learn More", link: "https://example.com" }]
       };
 
       const ctx = createExecutionContext();

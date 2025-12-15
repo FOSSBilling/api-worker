@@ -99,7 +99,12 @@ class MockD1Database {
               };
 
               mockDb.alerts.push(newAlert);
-              return { success: true };
+              return {
+                success: true,
+                meta: {
+                  changes: 1
+                }
+              };
             }
 
             // Simulate UPDATE operations
@@ -137,10 +142,20 @@ class MockD1Database {
 
                 updatedAlert.updated_at = new Date().toISOString();
                 mockDb.alerts[alertIndex] = updatedAlert;
-                return { success: true };
+                return {
+                  success: true,
+                  meta: {
+                    changes: 1
+                  }
+                };
               }
 
-              return { success: false, error: "Alert not found" };
+              return {
+                success: true,
+                meta: {
+                  changes: 0
+                }
+              };
             }
 
             // Simulate DELETE operations
@@ -149,10 +164,12 @@ class MockD1Database {
               const initialLength = mockDb.alerts.length;
               mockDb.alerts = mockDb.alerts.filter((a) => a.id !== id);
 
-              const success = mockDb.alerts.length < initialLength;
+              const changes = initialLength - mockDb.alerts.length;
               return {
-                success,
-                error: success ? undefined : "Alert not found"
+                success: true,
+                meta: {
+                  changes
+                }
               };
             }
 
@@ -164,10 +181,20 @@ class MockD1Database {
                 (b) => b.alert_id !== alertId
               );
 
-              return { success: mockDb.buttons.length < initialLength };
+              return {
+                success: true,
+                meta: {
+                  changes: initialLength - mockDb.buttons.length
+                }
+              };
             }
 
-            return { success: true };
+            return {
+              success: true,
+              meta: {
+                changes: 0
+              }
+            };
           }
         };
       },

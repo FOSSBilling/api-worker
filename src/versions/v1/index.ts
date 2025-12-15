@@ -1,5 +1,5 @@
 import { bearerAuth } from "hono/bearer-auth";
-import { Context, Hono } from "hono";
+import { Hono } from "hono";
 import { cache } from "hono/cache";
 import { cors } from "hono/cors";
 import { etag } from "hono/etag";
@@ -13,6 +13,8 @@ import {
   valid as semverValid
 } from "semver";
 import { Releases, ReleaseDetails } from "./interfaces";
+import { getPlatform } from "../../platform/middleware";
+import { ICache } from "../../platform/interfaces";
 
 // Cache for UPDATE_TOKEN to avoid repeated KV lookups
 let updateTokenCache: string | null = null;
@@ -29,19 +31,17 @@ versionsV1.use(
 
 /**
  * Get the UPDATE_TOKEN from AUTH_KV storage with caching
- * @param c Hono context with KV bindings
+ * @param cache Cache instance (AUTH_KV)
  * @returns Promise<string> The update token
  */
-async function getUpdateToken(
-  c: Context<{ Bindings: CloudflareBindings }>
-): Promise<string> {
+async function getUpdateToken(cache: ICache): Promise<string> {
   // Return cached token if available
   if (updateTokenCache) {
     return updateTokenCache;
   }
 
   // Get token from AUTH_KV storage
-  const token = await c.env.AUTH_KV.get("update_token");
+  const token = await cache.get("update_token");
 
   if (!token) {
     throw new Error("UPDATE_TOKEN not found in AUTH_KV storage");
@@ -59,8 +59,13 @@ versionsV1.get(
   etag(),
   prettyJSON(),
   async (c) => {
+    const platform = getPlatform(c);
     return c.json({
-      result: await getReleases(c),
+      result: await getReleases(
+        platform.getCache("CACHE_KV"),
+        platform.getEnv("GITHUB_TOKEN") || "",
+        false
+      ),
       error_code: 0,
       message: null
     });
@@ -70,12 +75,18 @@ versionsV1.get(
 versionsV1.get(
   "/update",
   async (c, next) => {
-    const token = await getUpdateToken(c);
+    const platform = getPlatform(c);
+    const token = await getUpdateToken(platform.getCache("AUTH_KV"));
     const bearer = bearerAuth({ token });
     return bearer(c, next);
   },
   async (c) => {
-    const releases = await getReleases(c, true);
+    const platform = getPlatform(c);
+    const releases = await getReleases(
+      platform.getCache("CACHE_KV"),
+      platform.getEnv("GITHUB_TOKEN") || "",
+      true
+    );
     const releaseCount = Object.keys(releases).length;
 
     return c.json({
@@ -93,7 +104,12 @@ versionsV1.get(
   prettyJSON(),
   async (c) => {
     const current = c.req.param("current");
-    const releases = await getReleases(c);
+    const platform = getPlatform(c);
+    const releases = await getReleases(
+      platform.getCache("CACHE_KV"),
+      platform.getEnv("GITHUB_TOKEN") || "",
+      false
+    );
 
     if (!semverValid(current)) {
       c.status(400);
@@ -141,7 +157,12 @@ versionsV1.get(
   prettyJSON(),
   async (c) => {
     const version = c.req.param("version");
-    const releases = await getReleases(c);
+    const platform = getPlatform(c);
+    const releases = await getReleases(
+      platform.getCache("CACHE_KV"),
+      platform.getEnv("GITHUB_TOKEN") || "",
+      false
+    );
 
     if (Object.keys(releases).length === 0) {
       // Return mock data for testing if no releases are available
@@ -191,10 +212,11 @@ versionsV1.get(
 export default versionsV1;
 
 async function getReleases(
-  c: Context<{ Bindings: CloudflareBindings }>,
+  cache: ICache,
+  githubToken: string,
   updateCache: boolean = false
 ): Promise<Releases> {
-  const cachedReleases = await c.env.CACHE_KV.get("gh-fossbilling-releases");
+  const cachedReleases = await cache.get("gh-fossbilling-releases");
   const cacheTTL = 86400;
 
   if (cachedReleases && !updateCache) {
@@ -206,7 +228,7 @@ async function getReleases(
       owner: "FOSSBilling",
       repo: "FOSSBilling",
       headers: {
-        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`
+        Authorization: `Bearer ${githubToken}`
       },
       per_page: 100
     });
@@ -221,7 +243,10 @@ async function getReleases(
           if (!zipAsset) {
             return null;
           }
-          const phpVersion = await getReleaseMinPhpVersion(c, release.tag_name);
+          const phpVersion = await getReleaseMinPhpVersion(
+            githubToken,
+            release.tag_name
+          );
 
           const releaseDetails: ReleaseDetails = {
             version: release.name || release.tag_name,
@@ -247,11 +272,9 @@ async function getReleases(
     }
 
     if (Object.keys(releases).length > 0) {
-      await c.env.CACHE_KV.put(
-        "gh-fossbilling-releases",
-        JSON.stringify(releases),
-        { expirationTtl: cacheTTL }
-      );
+      await cache.put("gh-fossbilling-releases", JSON.stringify(releases), {
+        expirationTtl: cacheTTL
+      });
     }
 
     return releases;
@@ -264,7 +287,7 @@ async function getReleases(
 }
 
 export async function getReleaseMinPhpVersion(
-  c: Context<{ Bindings: CloudflareBindings }>,
+  githubToken: string,
   version: string
 ): Promise<string> {
   const composerPath = semverGte(version, "0.5.0")
@@ -280,7 +303,7 @@ export async function getReleaseMinPhpVersion(
         path: composerPath,
         ref: version,
         headers: {
-          Authorization: `Bearer ${c.env.GITHUB_TOKEN}`
+          Authorization: `Bearer ${githubToken}`
         }
       }
     );

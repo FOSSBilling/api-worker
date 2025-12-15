@@ -166,7 +166,7 @@ export class MockD1Database implements D1Database {
 
               if (alertIndex === -1) {
                 return {
-                  success: false,
+                  success: true,
                   meta: {
                     duration: 0,
                     last_row_id: 0,
@@ -175,7 +175,7 @@ export class MockD1Database implements D1Database {
                     size_after: 0,
                     rows_read: 0,
                     rows_written: 0,
-                    changed_db: false
+                    changed_db: true
                   }
                 };
               }
@@ -191,7 +191,11 @@ export class MockD1Database implements D1Database {
                 alert.message = params[paramIndex++] as string;
               }
               if (query.includes("type = ?")) {
-                alert.type = params[paramIndex++] as "info" | "warning" | "danger" | "success";
+                alert.type = params[paramIndex++] as
+                  | "info"
+                  | "warning"
+                  | "danger"
+                  | "success";
               }
               if (query.includes("dismissible = ?")) {
                 alert.dismissible = params[paramIndex++] as boolean;
@@ -235,19 +239,19 @@ export class MockD1Database implements D1Database {
               const id = params[0] as string;
               const initialLength = mockDb.alerts.length;
               mockDb.alerts = mockDb.alerts.filter((a) => a.id !== id);
-              const success = mockDb.alerts.length < initialLength;
+              const wasDeleted = mockDb.alerts.length < initialLength;
 
               return {
-                success,
+                success: true,
                 meta: {
                   duration: 0,
                   last_row_id: 0,
-                  changes: success ? 1 : 0,
+                  changes: wasDeleted ? 1 : 0,
                   served_by: "mock",
                   size_after: 0,
                   rows_read: 1,
-                  rows_written: success ? 1 : 0,
-                  changed_db: success
+                  rows_written: wasDeleted ? 1 : 0,
+                  changed_db: true
                 }
               };
             }

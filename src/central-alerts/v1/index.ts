@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { trimTrailingSlash } from "hono/trailing-slash";
 import { CentralAlertsDatabase } from "./database";
 import { CentralAlert } from "./interfaces";
+import { getPlatform } from "../../platform/middleware";
 
 type CreateAlertRequest = Omit<CentralAlert, "id"> & { id?: string };
 
@@ -37,7 +38,10 @@ const validateRequiredFields = (body: CreateAlertRequest) => {
 };
 
 centralAlertsV1.get("/list", async (c) => {
-  const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);
+  const platform = getPlatform(c);
+  const db = new CentralAlertsDatabase(
+    platform.getDatabase("DB_CENTRAL_ALERTS")
+  );
   const { data, error } = await db.getAllAlerts();
 
   if (error) {
@@ -61,7 +65,10 @@ centralAlertsV1.get("/list", async (c) => {
 
 centralAlertsV1.get("/version/:version", async (c) => {
   const version = c.req.param("version");
-  const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);
+  const platform = getPlatform(c);
+  const db = new CentralAlertsDatabase(
+    platform.getDatabase("DB_CENTRAL_ALERTS")
+  );
   const { data, error } = await db.getAlertsByVersion(version);
 
   if (error) {
@@ -85,7 +92,10 @@ centralAlertsV1.get("/version/:version", async (c) => {
 
 centralAlertsV1.get("/:id", async (c) => {
   const id = c.req.param("id");
-  const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);
+  const platform = getPlatform(c);
+  const db = new CentralAlertsDatabase(
+    platform.getDatabase("DB_CENTRAL_ALERTS")
+  );
   const { data, error } = await db.getAlertById(id);
 
   if (error) {
@@ -109,7 +119,10 @@ centralAlertsV1.get("/:id", async (c) => {
 
 centralAlertsV1.post("/", async (c) => {
   const body: CreateAlertRequest = await c.req.json();
-  const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);
+  const platform = getPlatform(c);
+  const db = new CentralAlertsDatabase(
+    platform.getDatabase("DB_CENTRAL_ALERTS")
+  );
 
   const validationError = validateRequiredFields(body);
   if (validationError) {
@@ -144,7 +157,10 @@ centralAlertsV1.post("/", async (c) => {
 centralAlertsV1.put("/:id", async (c) => {
   const id = c.req.param("id");
   const body: CreateAlertRequest = await c.req.json();
-  const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);
+  const platform = getPlatform(c);
+  const db = new CentralAlertsDatabase(
+    platform.getDatabase("DB_CENTRAL_ALERTS")
+  );
 
   const { data, error } = await db.updateAlert(id, body);
 
@@ -169,7 +185,10 @@ centralAlertsV1.put("/:id", async (c) => {
 
 centralAlertsV1.delete("/:id", async (c) => {
   const id = c.req.param("id");
-  const db = new CentralAlertsDatabase(c.env.DB_CENTRAL_ALERTS);
+  const platform = getPlatform(c);
+  const db = new CentralAlertsDatabase(
+    platform.getDatabase("DB_CENTRAL_ALERTS")
+  );
 
   const { error } = await db.deleteAlert(id);
 

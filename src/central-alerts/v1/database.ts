@@ -1,4 +1,5 @@
 import { CentralAlert } from "./interfaces";
+import { IDatabase } from "../../platform/interfaces";
 
 export interface CentralAlertWithButtons extends CentralAlert {
   created_at?: string;
@@ -11,9 +12,9 @@ export interface DatabaseError {
 }
 
 export class CentralAlertsDatabase {
-  private db: D1Database;
+  private db: IDatabase;
 
-  constructor(db: D1Database) {
+  constructor(db: IDatabase) {
     this.db = db;
   }
 
@@ -39,15 +40,18 @@ export class CentralAlertsDatabase {
       ORDER BY datetime DESC
     `;
 
-    const result = await this.db.prepare(query).all();
+    const result = await this.db.prepare(query).all<Record<string, unknown>>();
 
-    const alerts = result.results?.map((alert) => ({
-      ...alert,
-      buttons:
-        typeof alert.buttons === "string"
-          ? JSON.parse(alert.buttons)
-          : alert.buttons || []
-    })) as CentralAlertWithButtons[];
+    const alerts = result.results?.map((alert) => {
+      const alertData = alert as Record<string, unknown>;
+      return {
+        ...alertData,
+        buttons:
+          typeof alertData.buttons === "string"
+            ? JSON.parse(alertData.buttons)
+            : (alertData.buttons as unknown[]) || []
+      };
+    }) as CentralAlertWithButtons[];
 
     return { data: alerts, error: null };
   }
@@ -77,15 +81,21 @@ export class CentralAlertsDatabase {
       ORDER BY datetime DESC
     `;
 
-    const result = await this.db.prepare(query).bind(version, version).all();
+    const result = await this.db
+      .prepare(query)
+      .bind(version, version)
+      .all<Record<string, unknown>>();
 
-    const alerts = result.results?.map((alert) => ({
-      ...alert,
-      buttons:
-        typeof alert.buttons === "string"
-          ? JSON.parse(alert.buttons)
-          : alert.buttons || []
-    })) as CentralAlertWithButtons[];
+    const alerts = result.results?.map((alert) => {
+      const alertData = alert as Record<string, unknown>;
+      return {
+        ...alertData,
+        buttons:
+          typeof alertData.buttons === "string"
+            ? JSON.parse(alertData.buttons)
+            : (alertData.buttons as unknown[]) || []
+      };
+    }) as CentralAlertWithButtons[];
 
     return { data: alerts, error: null };
   }
@@ -152,18 +162,22 @@ export class CentralAlertsDatabase {
       WHERE id = ?
     `;
 
-    const result = await this.db.prepare(query).bind(id).first();
+    const result = await this.db
+      .prepare(query)
+      .bind(id)
+      .first<Record<string, unknown>>();
 
     if (!result) {
       return { data: null, error: { message: "Alert not found" } };
     }
 
+    const resultData = result as Record<string, unknown>;
     const alert = {
-      ...result,
+      ...resultData,
       buttons:
-        typeof result.buttons === "string"
-          ? JSON.parse(result.buttons)
-          : result.buttons || []
+        typeof resultData.buttons === "string"
+          ? JSON.parse(resultData.buttons)
+          : (resultData.buttons as unknown[]) || []
     } as CentralAlertWithButtons;
 
     return { data: alert, error: null };
@@ -244,7 +258,7 @@ export class CentralAlertsDatabase {
       .bind(id)
       .run();
 
-    if (!result.success) {
+    if (!result.success || (result.meta?.changes ?? 0) === 0) {
       return { success: false, error: { message: "Alert not found" } };
     }
 
