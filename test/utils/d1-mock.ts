@@ -124,6 +124,147 @@ export class MockD1Database implements D1Database {
             }
 
             return null;
+          },
+
+          async run(): Promise<D1Response> {
+            // Simulate INSERT operations
+            if (query.includes("INSERT INTO central_alerts")) {
+              const newAlert: DatabaseAlert = {
+                id: params[0] as string,
+                title: params[1] as string,
+                message: params[2] as string,
+                type: params[3] as "info" | "warning" | "danger" | "success",
+                dismissible: params[4] as boolean,
+                min_fossbilling_version: params[5] as string,
+                max_fossbilling_version: params[6] as string,
+                include_preview_branch: params[7] as boolean,
+                datetime: params[8] as string,
+                buttons: params[9] as string,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              };
+              mockDb.alerts.push(newAlert);
+              return {
+                success: true,
+                meta: {
+                  duration: 0,
+                  last_row_id: mockDb.alerts.length,
+                  changes: 1,
+                  served_by: "mock",
+                  size_after: 0,
+                  rows_read: 0,
+                  rows_written: 1,
+                  changed_db: true
+                }
+              };
+            }
+
+            // Simulate UPDATE operations
+            if (query.includes("UPDATE central_alerts")) {
+              const id = params[params.length - 1] as string;
+              const alertIndex = mockDb.alerts.findIndex((a) => a.id === id);
+
+              if (alertIndex === -1) {
+                return {
+                  success: false,
+                  meta: {
+                    duration: 0,
+                    last_row_id: 0,
+                    changes: 0,
+                    served_by: "mock",
+                    size_after: 0,
+                    rows_read: 0,
+                    rows_written: 0,
+                    changed_db: false
+                  }
+                };
+              }
+
+              const alert = { ...mockDb.alerts[alertIndex] };
+              let paramIndex = 0;
+
+              // Parse fields from query and params
+              if (query.includes("title = ?")) {
+                alert.title = params[paramIndex++] as string;
+              }
+              if (query.includes("message = ?")) {
+                alert.message = params[paramIndex++] as string;
+              }
+              if (query.includes("type = ?")) {
+                alert.type = params[paramIndex++] as "info" | "warning" | "danger" | "success";
+              }
+              if (query.includes("dismissible = ?")) {
+                alert.dismissible = params[paramIndex++] as boolean;
+              }
+              if (query.includes("min_fossbilling_version = ?")) {
+                alert.min_fossbilling_version = params[paramIndex++] as string;
+              }
+              if (query.includes("max_fossbilling_version = ?")) {
+                alert.max_fossbilling_version = params[paramIndex++] as string;
+              }
+              if (query.includes("include_preview_branch = ?")) {
+                alert.include_preview_branch = params[paramIndex++] as boolean;
+              }
+              if (query.includes("datetime = ?")) {
+                alert.datetime = params[paramIndex++] as string;
+              }
+              if (query.includes("buttons = ?")) {
+                alert.buttons = params[paramIndex++] as string;
+              }
+
+              alert.updated_at = new Date().toISOString();
+              mockDb.alerts[alertIndex] = alert;
+
+              return {
+                success: true,
+                meta: {
+                  duration: 0,
+                  last_row_id: 0,
+                  changes: 1,
+                  served_by: "mock",
+                  size_after: 0,
+                  rows_read: 1,
+                  rows_written: 1,
+                  changed_db: true
+                }
+              };
+            }
+
+            // Simulate DELETE operations
+            if (query.includes("DELETE FROM central_alerts")) {
+              const id = params[0] as string;
+              const initialLength = mockDb.alerts.length;
+              mockDb.alerts = mockDb.alerts.filter((a) => a.id !== id);
+              const success = mockDb.alerts.length < initialLength;
+
+              return {
+                success,
+                meta: {
+                  duration: 0,
+                  last_row_id: 0,
+                  changes: success ? 1 : 0,
+                  served_by: "mock",
+                  size_after: 0,
+                  rows_read: 1,
+                  rows_written: success ? 1 : 0,
+                  changed_db: success
+                }
+              };
+            }
+
+            return {
+              success: true,
+              meta: {
+                duration: 0,
+                last_row_id: 0,
+                changes: 0,
+                served_by: "mock",
+                size_after: 0,
+                rows_read: 0,
+                rows_written: 0,
+                changed_db: false
+              }
+            };
           }
         };
       },
