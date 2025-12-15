@@ -15,12 +15,8 @@
     ":npm",
     ":rebaseStalePrs"
   ],
-  "automergeSchedule": [
-    "at any time"
-  ],
+  "automergeSchedule": ["at any time"],
   "automergeStrategy": "squash",
-  "postUpdateOptions": [
-    "npmDedupe"
-  ],
+  "postUpdateOptions": ["npmDedupe"],
   "skipInstalls": false
 }

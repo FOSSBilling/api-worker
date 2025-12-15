@@ -3,10 +3,18 @@ import { contextStorage } from "hono/context-storage";
 import centralAlertsV1 from "./central-alerts/v1";
 import releasesV1 from "./releases/v1";
 import versionsV1 from "./versions/v1";
+import { platformMiddleware } from "./platform/middleware";
+import { createCloudflareBindings } from "./platform/adapters/cloudflare";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 
 app.use(contextStorage());
+
+app.use("*", async (c, next) => {
+  const bindings = createCloudflareBindings(c.env);
+  const middleware = platformMiddleware(bindings);
+  return middleware(c, next);
+});
 
 app.route("/releases/v1", releasesV1);
 app.route("/central-alerts/v1", centralAlertsV1);
