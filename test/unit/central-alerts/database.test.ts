@@ -37,7 +37,8 @@ class MockD1Database {
             // Simulate getting all alerts (no WHERE clause)
             if (
               query.includes("FROM central_alerts") &&
-              query.includes("ORDER BY datetime DESC") &&
+              (query.includes("ORDER BY datetime DESC") ||
+                query.includes('ORDER BY "datetime" DESC')) &&
               !query.includes("WHERE")
             ) {
               return { success: true, results: mockDb.alerts };
@@ -203,7 +204,8 @@ class MockD1Database {
         // Simulate getting all alerts
         if (
           query.includes("FROM central_alerts") &&
-          query.includes("ORDER BY datetime DESC")
+          (query.includes("ORDER BY datetime DESC") ||
+            query.includes('ORDER BY "datetime" DESC'))
         ) {
           return { success: true, results: mockDb.alerts };
         }
