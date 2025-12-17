@@ -5,10 +5,11 @@ import {
   waitOnExecutionContext
 } from "cloudflare:test";
 import app from "../../../../src";
-import { mockVersionsApiResponse } from "../../../fixtures/releases";
+import { mockReleases } from "../../../fixtures/releases";
 import { suppressConsole } from "../../../utils/mock-helpers";
 import type { ReleasesResponse } from "../../../utils/test-types";
 import { getReleases } from "../../../../src/versions/v1";
+import { Releases } from "../../../../src/versions/v1/interfaces";
 
 vi.mock("../../../../src/versions/v1", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../src/versions/v1")>();
@@ -35,9 +36,7 @@ describe("Releases API v1 (Deprecated)", () => {
 
   describe("GET /", () => {
     it("should return releases with support status", async () => {
-      vi.mocked(getReleases).mockResolvedValue(
-        mockVersionsApiResponse.result as any
-      );
+      vi.mocked(getReleases).mockResolvedValue(mockReleases);
 
       const ctx = createExecutionContext();
       const response = await app.request("/releases/v1", {}, env, ctx);
@@ -80,7 +79,7 @@ describe("Releases API v1 (Deprecated)", () => {
         "0.2.0": { version: "0.2.0" }
       };
 
-      vi.mocked(getReleases).mockResolvedValue(mockData as any);
+      vi.mocked(getReleases).mockResolvedValue(mockData as unknown as Releases);
 
       const ctx = createExecutionContext();
       const response = await app.request("/releases/v1", {}, env, ctx);
@@ -99,7 +98,7 @@ describe("Releases API v1 (Deprecated)", () => {
         "0.6.0": { version: "0.6.0" }
       };
 
-      vi.mocked(getReleases).mockResolvedValue(mockData as any);
+      vi.mocked(getReleases).mockResolvedValue(mockData as unknown as Releases);
 
       const ctx = createExecutionContext();
       const response = await app.request("/releases/v1", {}, env, ctx);
@@ -115,9 +114,7 @@ describe("Releases API v1 (Deprecated)", () => {
 
   describe("Deprecation Headers", () => {
     it("should include all required deprecation headers", async () => {
-      vi.mocked(getReleases).mockResolvedValue(
-        mockVersionsApiResponse.result as any
-      );
+      vi.mocked(getReleases).mockResolvedValue(mockReleases);
 
       const ctx = createExecutionContext();
       const response = await app.request("/releases/v1", {}, env, ctx);
@@ -156,3 +153,4 @@ describe("Releases API v1 (Deprecated)", () => {
     });
   });
 });
+
