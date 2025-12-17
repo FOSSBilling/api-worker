@@ -1,0 +1,2 @@
+# Ignore workerd generated files
+worker-configuration.d.ts

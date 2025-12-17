@@ -4,8 +4,10 @@ import { cors } from "hono/cors";
 import { etag } from "hono/etag";
 import { prettyJSON } from "hono/pretty-json";
 import { trimTrailingSlash } from "hono/trailing-slash";
-import { diff as semverDiff } from "semver";
+import { diff as semverDiff, compare as semverCompare } from "semver";
 import { FOSSBillingVersion } from "./interfaces";
+import { getReleases } from "../../versions/v1";
+import { getPlatform } from "../../platform/middleware";
 
 const releasesV1 = new Hono<{ Bindings: CloudflareBindings; strict: true }>();
 
@@ -23,22 +25,14 @@ releasesV1.get(
   etag(),
   prettyJSON(),
   async (c) => {
-    const baseUrl = new URL(c.req.url).origin;
-    let releases: { result: unknown } = { result: [] };
+    const platform = getPlatform(c);
+    const releases = await getReleases(
+      platform.getCache("CACHE_KV"),
+      platform.getEnv("GITHUB_TOKEN") || "",
+      false
+    );
 
-    try {
-      const response = await fetch(`${baseUrl}/versions/v1`);
-      if (!response.ok) {
-        return c.json({ result: null, error: "Failed to fetch versions" }, 500);
-      }
-      releases = await response.json();
-    } catch {
-      return c.json({ result: null, error: "Failed to fetch versions" }, 500);
-    }
-
-    const rawVersions = Array.isArray(releases.result)
-      ? releases.result.flat().filter(Boolean)
-      : Object.keys(releases.result || {});
+    const rawVersions = Object.keys(releases).sort(semverCompare);
     const latestVersion = rawVersions[rawVersions.length - 1];
     const versions: FOSSBillingVersion[] = rawVersions.map((version) => {
       const versionStr = String(version);

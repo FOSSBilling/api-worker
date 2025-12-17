@@ -3,9 +3,17 @@
 
 import { IDatabase, IPreparedStatement } from "../../interfaces";
 
+interface PostgresResult {
+  rows: unknown[];
+  rowCount?: number | null;
+}
+
+interface PostgresPool {
+  query(text: string, params: unknown[]): Promise<PostgresResult>;
+}
+
 export class PostgreSQLAdapter implements IDatabase {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  constructor(private pool: any) {}
+  constructor(private pool: PostgresPool) {}
 
   prepare(query: string): IPreparedStatement {
     return new PostgreSQLStatement(this.pool, query);
@@ -25,8 +33,7 @@ class PostgreSQLStatement implements IPreparedStatement {
   private query: string;
 
   constructor(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private pool: any,
+    private pool: PostgresPool,
     query: string
   ) {
     let paramIndex = 1;
@@ -39,27 +46,16 @@ class PostgreSQLStatement implements IPreparedStatement {
   }
 
   async all<T = unknown>(): Promise<{ results?: T[]; success: boolean }> {
-    try {
-      const result = await this.pool.query(this.query, this.params);
-      return {
-        results: result.rows as T[],
-        success: true
-      };
-    } catch {
-      return {
-        results: undefined,
-        success: false
-      };
-    }
+    const result = await this.pool.query(this.query, this.params);
+    return {
+      results: result.rows as T[],
+      success: true
+    };
   }
 
   async first<T = unknown>(): Promise<T | null> {
-    try {
-      const result = await this.pool.query(this.query, this.params);
-      return (result.rows[0] as T) || null;
-    } catch {
-      return null;
-    }
+    const result = await this.pool.query(this.query, this.params);
+    return (result.rows[0] as T) || null;
   }
 
   async run(): Promise<{
