@@ -277,7 +277,8 @@ export class MockD1Database implements D1Database {
         // Simulate getting all alerts
         if (
           query.includes("FROM central_alerts") &&
-          query.includes("ORDER BY datetime DESC")
+          (query.includes("ORDER BY datetime DESC") ||
+            query.includes('ORDER BY "datetime" DESC'))
         ) {
           return {
             success: true,
