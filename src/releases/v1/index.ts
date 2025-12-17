@@ -38,13 +38,13 @@ releasesV1.get(
       const versionStr = String(version);
 
       if (versionStr === latestVersion) {
-        return { version: versionStr, support: "supported" };
+        return { version: versionStr, support: "latest" };
       }
 
       const support =
         semverDiff(versionStr, latestVersion) === "patch"
-          ? "unsupported"
-          : "supported";
+          ? "outdated"
+          : "insecure";
 
       return { version: versionStr, support };
     });

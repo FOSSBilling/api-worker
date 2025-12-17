@@ -11,8 +11,8 @@ export function createCloudflareBindings(
       DB_CENTRAL_ALERTS: new CloudflareD1Adapter(env.DB_CENTRAL_ALERTS)
     },
     caches: {
-      CACHE_KV: new CloudflareKVAdapter(env.CACHE_KV),
-      AUTH_KV: new CloudflareKVAdapter(env.AUTH_KV)
+      CACHE_KV: new CloudflareKVAdapter(env.CACHE_KV, "CACHE_KV"),
+      AUTH_KV: new CloudflareKVAdapter(env.AUTH_KV, "AUTH_KV")
     },
     environment: new CloudflareEnvironmentAdapter(
       env as unknown as Record<string, unknown>

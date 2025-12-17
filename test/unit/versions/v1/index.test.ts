@@ -39,7 +39,7 @@ describe("Versions API v1", () => {
 
     // Set up UPDATE_TOKEN in AUTH_KV storage for tests
     const testUpdateToken = "test-update-token-12345";
-    await env.AUTH_KV.put("update_token", testUpdateToken);
+    await env.AUTH_KV.put("UPDATE_TOKEN", testUpdateToken);
 
     vi.clearAllMocks();
     setupGitHubApiMock(

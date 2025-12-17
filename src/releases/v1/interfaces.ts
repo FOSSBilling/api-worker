@@ -1,4 +1,4 @@
 export type FOSSBillingVersion = {
   version: string;
-  support: "supported" | "unsupported";
+  support: "latest" | "outdated" | "insecure";
 };

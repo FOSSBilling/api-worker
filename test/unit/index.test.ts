@@ -62,7 +62,7 @@ describe("FOSSBilling API Worker - Main App", () => {
 
     // Set up UPDATE_TOKEN in AUTH_KV storage for tests
     const testUpdateToken = "test-update-token-12345";
-    await env.AUTH_KV.put("update_token", testUpdateToken);
+    await env.AUTH_KV.put("UPDATE_TOKEN", testUpdateToken);
 
     // Mock D1 database binding for central alerts
     env.DB_CENTRAL_ALERTS = mockD1Database;
