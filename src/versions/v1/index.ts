@@ -29,25 +29,17 @@ versionsV1.use(
   trimTrailingSlash()
 );
 
-/**
- * Get the UPDATE_TOKEN from AUTH_KV storage with caching
- * @param cache Cache instance (AUTH_KV)
- * @returns Promise<string> The update token
- */
 async function getUpdateToken(cache: ICache): Promise<string> {
-  // Return cached token if available
   if (updateTokenCache) {
     return updateTokenCache;
   }
 
-  // Get token from AUTH_KV storage
   const token = await cache.get("update_token");
 
   if (!token) {
     throw new Error("UPDATE_TOKEN not found in AUTH_KV storage");
   }
 
-  // Cache the token for future requests
   updateTokenCache = token;
 
   return token;
@@ -165,7 +157,6 @@ versionsV1.get(
     );
 
     if (Object.keys(releases).length === 0) {
-      // Return mock data for testing if no releases are available
       return c.json({
         result: {
           version: "0.6.0",
@@ -211,7 +202,7 @@ versionsV1.get(
 
 export default versionsV1;
 
-async function getReleases(
+export async function getReleases(
   cache: ICache,
   githubToken: string,
   updateCache: boolean = false

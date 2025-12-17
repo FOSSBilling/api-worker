@@ -59,14 +59,10 @@ class MockPreparedStatement implements IPreparedStatement {
   }
 
   async all<T = unknown>(): Promise<{ results?: T[]; success: boolean }> {
-    try {
-      const fromMatch = this.query.match(/FROM\s+(\w+)/i);
-      const tableName = fromMatch ? fromMatch[1] : "central_alerts";
-      const results = this.data.get(tableName) || [];
-      return { results: results as T[], success: true };
-    } catch {
-      return { results: undefined, success: false };
-    }
+    const fromMatch = this.query.match(/FROM\s+(\w+)/i);
+    const tableName = fromMatch ? fromMatch[1] : "central_alerts";
+    const results = this.data.get(tableName) || [];
+    return { results: results as T[], success: true };
   }
 
   async first<T = unknown>(): Promise<T | null> {
@@ -83,17 +79,10 @@ class MockPreparedStatement implements IPreparedStatement {
       [key: string]: unknown;
     };
   }> {
-    try {
-      return {
-        success: true,
-        meta: { changes: 1 }
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error)
-      };
-    }
+    return {
+      success: true,
+      meta: { changes: 1 }
+    };
   }
 }
 

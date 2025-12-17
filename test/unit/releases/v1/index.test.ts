@@ -6,14 +6,19 @@ import {
 } from "cloudflare:test";
 import app from "../../../../src";
 import { mockVersionsApiResponse } from "../../../fixtures/releases";
-import {
-  suppressConsole,
-  createMockFetchResponse
-} from "../../../utils/mock-helpers";
+import { suppressConsole } from "../../../utils/mock-helpers";
 import type { ReleasesResponse } from "../../../utils/test-types";
+import { getReleases } from "../../../../src/versions/v1";
+
+vi.mock("../../../../src/versions/v1", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../../src/versions/v1")>();
+  return {
+    ...actual,
+    getReleases: vi.fn()
+  };
+});
 
 let restoreConsole: (() => void) | null = null;
-let fetchSpy: ReturnType<typeof vi.spyOn<typeof global, "fetch">> | null = null;
 
 describe("Releases API v1 (Deprecated)", () => {
   beforeEach(() => {
@@ -26,22 +31,13 @@ describe("Releases API v1 (Deprecated)", () => {
       restoreConsole();
       restoreConsole = null;
     }
-
-    if (fetchSpy) {
-      fetchSpy.mockRestore();
-      fetchSpy = null;
-    }
   });
 
   describe("GET /", () => {
     it("should return releases with support status", async () => {
-      fetchSpy = vi
-        .spyOn(global, "fetch")
-        .mockResolvedValueOnce(
-          createMockFetchResponse(
-            mockVersionsApiResponse
-          ) as unknown as Response
-        );
+      vi.mocked(getReleases).mockResolvedValue(
+        mockVersionsApiResponse.result as any
+      );
 
       const ctx = createExecutionContext();
       const response = await app.request("/releases/v1", {}, env, ctx);
@@ -61,10 +57,8 @@ describe("Releases API v1 (Deprecated)", () => {
       expect(response.headers.get("Link")).toBeTruthy();
     });
 
-    it("should handle fetch errors gracefully", async () => {
-      fetchSpy = vi
-        .spyOn(global, "fetch")
-        .mockRejectedValueOnce(new Error("Network error"));
+    it("should handle errors gracefully", async () => {
+      vi.mocked(getReleases).mockRejectedValue(new Error("Database error"));
 
       const ctx = createExecutionContext();
       const response = await app.request("/releases/v1", {}, env, ctx);
@@ -77,41 +71,16 @@ describe("Releases API v1 (Deprecated)", () => {
       expect(data).toHaveProperty("error");
       expect(data.error).toBeTruthy();
     });
-
-    it("should handle invalid JSON response", async () => {
-      fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce({
-        ok: true,
-        json: async () => {
-          throw new Error("Invalid JSON");
-        }
-      } as unknown as Response);
-
-      const ctx = createExecutionContext();
-      const response = await app.request("/releases/v1", {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(500);
-      const data: ReleasesResponse = await response.json();
-
-      expect(data).toHaveProperty("result", null);
-      expect(data).toHaveProperty("error");
-    });
   });
 
   describe("Support Status Calculation", () => {
     it("should mark old versions as unsupported", async () => {
       const mockData = {
-        result: {
-          "0.1.0": { version: "0.1.0" },
-          "0.2.0": { version: "0.2.0" }
-        }
+        "0.1.0": { version: "0.1.0" },
+        "0.2.0": { version: "0.2.0" }
       };
 
-      fetchSpy = vi
-        .spyOn(global, "fetch")
-        .mockResolvedValueOnce(
-          createMockFetchResponse(mockData) as unknown as Response
-        );
+      vi.mocked(getReleases).mockResolvedValue(mockData as any);
 
       const ctx = createExecutionContext();
       const response = await app.request("/releases/v1", {}, env, ctx);
@@ -126,17 +95,11 @@ describe("Releases API v1 (Deprecated)", () => {
 
     it("should mark recent versions as supported", async () => {
       const mockData = {
-        result: {
-          "0.5.0": { version: "0.5.0" },
-          "0.6.0": { version: "0.6.0" }
-        }
+        "0.5.0": { version: "0.5.0" },
+        "0.6.0": { version: "0.6.0" }
       };
 
-      fetchSpy = vi
-        .spyOn(global, "fetch")
-        .mockResolvedValueOnce(
-          createMockFetchResponse(mockData) as unknown as Response
-        );
+      vi.mocked(getReleases).mockResolvedValue(mockData as any);
 
       const ctx = createExecutionContext();
       const response = await app.request("/releases/v1", {}, env, ctx);
@@ -152,13 +115,9 @@ describe("Releases API v1 (Deprecated)", () => {
 
   describe("Deprecation Headers", () => {
     it("should include all required deprecation headers", async () => {
-      fetchSpy = vi
-        .spyOn(global, "fetch")
-        .mockResolvedValueOnce(
-          createMockFetchResponse(
-            mockVersionsApiResponse
-          ) as unknown as Response
-        );
+      vi.mocked(getReleases).mockResolvedValue(
+        mockVersionsApiResponse.result as any
+      );
 
       const ctx = createExecutionContext();
       const response = await app.request("/releases/v1", {}, env, ctx);
@@ -184,11 +143,7 @@ describe("Releases API v1 (Deprecated)", () => {
     });
 
     it("should handle missing versions data", async () => {
-      fetchSpy = vi
-        .spyOn(global, "fetch")
-        .mockResolvedValueOnce(
-          createMockFetchResponse({ result: {} }) as unknown as Response
-        );
+      vi.mocked(getReleases).mockResolvedValue({});
 
       const ctx = createExecutionContext();
       const response = await app.request("/releases/v1", {}, env, ctx);

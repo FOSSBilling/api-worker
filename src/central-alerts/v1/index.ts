@@ -11,7 +11,7 @@ const centralAlertsV1 = new Hono<{ Bindings: CloudflareBindings }>();
 centralAlertsV1.use(trimTrailingSlash());
 
 const validateRequiredFields = (body: CreateAlertRequest) => {
-  const requiredFields = [
+  const requiredFields: (keyof CreateAlertRequest)[] = [
     "title",
     "message",
     "type",
@@ -21,7 +21,7 @@ const validateRequiredFields = (body: CreateAlertRequest) => {
   ];
 
   for (const field of requiredFields) {
-    if (!body[field as keyof CreateAlertRequest]) {
+    if (!body[field]) {
       return {
         json: {
           result: null,
