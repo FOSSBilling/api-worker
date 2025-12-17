@@ -44,6 +44,8 @@ export class CentralAlertsDatabase {
       const alertData = alert as Record<string, unknown>;
       return {
         ...alertData,
+        dismissible: Boolean(alertData.dismissible),
+        include_preview_branch: Boolean(alertData.include_preview_branch),
         buttons:
           typeof alertData.buttons === "string"
             ? JSON.parse(alertData.buttons)
