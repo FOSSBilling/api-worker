@@ -42,7 +42,8 @@ app.get("/", (c) => {
   return c.json({
     result: null,
     error: null,
-    message: "FOSSBilling API Worker. See https://github.com/FOSSBilling/api-worker for documentation."
+    message:
+      "FOSSBilling API Worker. See https://github.com/FOSSBilling/api-worker for documentation."
   });
 });
 

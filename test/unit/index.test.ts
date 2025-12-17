@@ -167,7 +167,7 @@ describe("FOSSBilling API Worker - Main App", () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      const data: any = await response.json();
+      const data: { message: string } = await response.json();
       expect(data).toHaveProperty("message");
       expect(data.message).toContain("FOSSBilling API Worker");
     });

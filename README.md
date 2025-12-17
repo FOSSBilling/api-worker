@@ -15,7 +15,7 @@ The worker exposes three main services:
   Allows the project to push critical notifications to all FOSSBilling installations—useful for security hotfixes or major announcements.
 
 - **Releases Service** (`/releases/v1`)
-  *Legacy.* This is kept around to support older FOSSBilling versions that haven't updated to the new update system yet. It sends deprecation headers and will eventually be removed.
+  _Legacy._ This is kept around to support older FOSSBilling versions that haven't updated to the new update system yet. It sends deprecation headers and will eventually be removed.
 
 ## Architecture
 
@@ -24,8 +24,8 @@ We've structured the app to separate the core logic from the specific runtime en
 - **Application Logic**: Found in `src/versions`, `src/central-alerts`, etc. These feature modules don't know they are running on Cloudflare.
 - **Platform Layer**: Located in `src/platform`. This defines interfaces for things like Cache, Database, and Environment variables.
 - **Adapters**:
-    - `src/platform/adapters/cloudflare`: Real implementations using KV and D1.
-    - `src/platform/adapters/node`: Reference implementations (useful for testing or alternative deployments).
+  - `src/platform/adapters/cloudflare`: Real implementations using KV and D1.
+  - `src/platform/adapters/node`: Reference implementations (useful for testing or alternative deployments).
 
 ## APIs
 
@@ -69,12 +69,14 @@ npm install
 ### Local Setup
 
 1. Create a `.dev.vars` file for your secrets:
+
    ```env
    GITHUB_TOKEN="your-token"
    UPDATE_TOKEN="dev-secret"
    ```
 
 2. Initialize the local D1 database:
+
    ```bash
    npm run init:db
    ```
