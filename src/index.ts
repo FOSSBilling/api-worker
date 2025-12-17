@@ -41,7 +41,7 @@ app.onError((err, c) => {
 app.get("/", (c) => {
   return c.json({
     result: null,
-    error: null,
+    error_code: 0,
     message:
       "FOSSBilling API Worker. See https://github.com/FOSSBilling/api-worker for documentation."
   });
