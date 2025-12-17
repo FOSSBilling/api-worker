@@ -2,7 +2,6 @@ import { CentralAlert } from "./interfaces";
 import { IDatabase } from "../../platform/interfaces";
 
 export interface CentralAlertWithButtons extends CentralAlert {
-  updated_at?: string;
 }
 
 export interface DatabaseError {
@@ -33,7 +32,6 @@ export class CentralAlertsDatabase {
         include_preview_branch,
         buttons,
         datetime,
-        updated_at
       FROM central_alerts
       ORDER BY datetime DESC
     `;
