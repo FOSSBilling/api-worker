@@ -37,8 +37,8 @@ We've structured the app to separate the core logic from the specific runtime en
 
 ### Central Alerts (`/central-alerts/v1`)
 
-- `GET /list` - Public endpoint for fetching active alerts.
-- `GET /version/:version` - Fetch alerts targeted at a specific FOSSBilling version.
+- `GET /central-alerts/v1/list` - Public endpoint for fetching active alerts.
+- `GET /central-alerts/v1/version/:version` - Fetch alerts targeted at a specific FOSSBilling version.
 - **Admin Endpoints**: `POST`, `PUT`, `DELETE` exist but require authentication (controlled by the admin interface).
 
 ## Configuration
