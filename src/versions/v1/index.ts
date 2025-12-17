@@ -47,17 +47,26 @@ async function getUpdateToken(cache: ICache): Promise<string> {
 
 versionsV1.get(
   "/",
-  cache({ cacheName: "versions-api-v1", cacheControl: "max-age: 86400" }),
+  cache({
+    cacheName: "versions-api-v1",
+    cacheControl: "max-age: 86400"
+  }),
   etag(),
   prettyJSON(),
   async (c) => {
     const platform = getPlatform(c);
+    const releases = await getReleases(
+      platform.getCache("CACHE_KV"),
+      platform.getEnv("GITHUB_TOKEN") || "",
+      false
+    );
+
+    if (Object.keys(releases).length === 0) {
+      c.header("Vary", "*");
+    }
+
     return c.json({
-      result: await getReleases(
-        platform.getCache("CACHE_KV"),
-        platform.getEnv("GITHUB_TOKEN") || "",
-        false
-      ),
+      result: releases,
       error_code: 0,
       message: null
     });
