@@ -67,7 +67,7 @@ export interface VersionInfo {
 
 export interface ReleaseVersion {
   version: string;
-  support: "supported" | "unsupported";
+  support: "supported" | "unsupported" | "latest" | "outdated" | "insecure";
 }
 
 // GitHub Types

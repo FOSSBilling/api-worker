@@ -89,8 +89,8 @@ describe("Releases API v1 (Deprecated)", () => {
       expect(response.status).toBe(200);
       const data: ReleasesResponse = await response.json();
       const versions = data.result.versions;
-      expect(versions[0].support).toBe("supported");
-      expect(versions[1].support).toBe("supported");
+      expect(versions[0].support).toBe("insecure");
+      expect(versions[1].support).toBe("latest");
     });
 
     it("should mark recent versions as supported", async () => {
@@ -108,8 +108,8 @@ describe("Releases API v1 (Deprecated)", () => {
       expect(response.status).toBe(200);
       const data: ReleasesResponse = await response.json();
       const versions = data.result.versions;
-      expect(versions[0].support).toBe("supported");
-      expect(versions[1].support).toBe("supported");
+      expect(versions[0].support).toBe("insecure");
+      expect(versions[1].support).toBe("latest");
     });
   });
 

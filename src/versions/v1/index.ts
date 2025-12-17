@@ -34,7 +34,7 @@ async function getUpdateToken(cache: ICache): Promise<string> {
     return updateTokenCache;
   }
 
-  const token = await cache.get("update_token");
+  const token = await cache.get("UPDATE_TOKEN");
 
   if (!token) {
     throw new Error("UPDATE_TOKEN not found in AUTH_KV storage");

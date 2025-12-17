@@ -188,4 +188,3 @@ The service requires a `GITHUB_TOKEN` environment variable for API access. This 
 - Access release assets and metadata
 
 For releases before 0.5.0, the composer.json file is located at `src/composer.json`. For 0.5.0 and later, it's in the repository root.
-
