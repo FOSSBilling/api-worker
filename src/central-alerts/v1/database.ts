@@ -28,9 +28,9 @@ export class CentralAlertsDatabase {
         max_fossbilling_version,
         include_preview_branch,
         buttons,
-        datetime,
+        "datetime",
       FROM central_alerts
-      ORDER BY datetime DESC
+      ORDER BY "datetime" DESC
     `;
 
     const result = await this.db.prepare(query).all<Record<string, unknown>>();
