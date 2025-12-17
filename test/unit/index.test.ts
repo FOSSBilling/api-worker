@@ -161,12 +161,16 @@ describe("FOSSBilling API Worker - Main App", () => {
       expect(response.status).toBe(404);
     });
 
-    it("should return 404 for root path", async () => {
+    it("should return 200 with notice for root path", async () => {
       const ctx = createExecutionContext();
       const response = await app.request("/", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(200);
+      const data: ApiResponse<null> = await response.json();
+      expect(data.result).toBe(null);
+      expect(data.error_code).toBe(0);
+      expect(data.message).toContain("FOSSBilling API Worker");
     });
   });
 

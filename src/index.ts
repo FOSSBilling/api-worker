@@ -37,6 +37,16 @@ app.onError((err, c) => {
   );
 });
 
+// Handle root path
+app.get("/", (c) => {
+  return c.json({
+    result: null,
+    error_code: 0,
+    message:
+      "FOSSBilling API Worker. See https://github.com/FOSSBilling/api-worker for documentation."
+  });
+});
+
 // Handle unknown routes
 app.all("/*", (c) => {
   return c.json(
