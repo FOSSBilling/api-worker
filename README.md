@@ -1,189 +1,95 @@
 # FOSSBilling API Worker
 
-Cloudflare Worker providing multiple API endpoints for FOSSBilling version management, release information, and central alerts.
+This is the API service that acts as the central hub for FOSSBilling instances. It handles version checks, update information, and broadcasts system-wide alerts.
 
-## Overview
+Everything is built on [Hono](https://hono.dev), making it lightweight and fast. While we currently deploy this to Cloudflare Workers, the code is designed to be platform-agnostic.
 
-This worker provides three main services:
+## What it does
 
-- **Versions Service** – Retrieve available FOSSBilling releases and version details from GitHub, including download URLs, PHP version requirements, and changelogs.
-- **Releases Service** – Get release information with support status tracking (deprecated, maintained for backward compatibility).
-- **Central Alerts Service** – Manage and distribute system-wide alerts to FOSSBilling instances.
+The worker exposes three main services:
 
-## API Endpoints
+- **Versions Service** (`/versions/v1`)
+  The source of truth for FOSSBilling updates. It fetches release data from GitHub, caches it for performance, and helps instances decide if they need to update.
 
-### Versions Service (`/versions/v1`)
+- **Central Alerts** (`/central-alerts/v1`)
+  Allows the project to push critical notifications to all FOSSBilling installations—useful for security hotfixes or major announcements.
 
-- `GET /versions/v1` - Get all available FOSSBilling releases
-- `GET /versions/v1/:version` - Get details for a specific version (supports `latest`)
-- `GET /versions/v1/build_changelog/:current` - Build changelog from current version to latest
-- `GET /versions/v1/update` - Update releases cache (requires bearer token)
+- **Releases Service** (`/releases/v1`)
+  *Legacy.* This is kept around to support older FOSSBilling versions that haven't updated to the new update system yet. It sends deprecation headers and will eventually be removed.
 
-**Note**: The `/update` endpoint requires a bearer token that is stored in KV storage. See [Configuration](#configuration) for details.
+## Architecture
 
-**Response Format**:
+We've structured the app to separate the core logic from the specific runtime environment (Cloudflare, Node, etc.).
 
-```json
-{
-  "result": {
-    /* data */
-  },
-  "error_code": 0,
-  "message": null
-}
-```
+- **Application Logic**: Found in `src/versions`, `src/central-alerts`, etc. These feature modules don't know they are running on Cloudflare.
+- **Platform Layer**: Located in `src/platform`. This defines interfaces for things like Cache, Database, and Environment variables.
+- **Adapters**:
+    - `src/platform/adapters/cloudflare`: Real implementations using KV and D1.
+    - `src/platform/adapters/node`: Reference implementations (useful for testing or alternative deployments).
 
-### Releases Service (`/releases/v1`) - Deprecated
+## APIs
 
-- `GET /releases/v1` - Get releases with support status (deprecated, use versions service instead)
+### Versions (`/versions/v1`)
 
-**Note**: This service returns deprecation headers and will be sunset on December 31, 2025.
+- `GET /versions/v1` - List all releases.
+- `GET /versions/v1/latest` - Get just the newest one.
+- `GET /versions/v1/build_changelog/:current` - Generates a consolidated changelog from your current version up to the latest.
 
-### Central Alerts Service (`/central-alerts/v1`)
+### Central Alerts (`/central-alerts/v1`)
 
-- `GET /central-alerts/v1/list` - Get all active system alerts
-- `GET /central-alerts/v1/version/:version` - Get alerts for a specific FOSSBilling version
-- `GET /central-alerts/v1/:id` - Get a specific alert by ID
-- `POST /central-alerts/v1/` - Create a new alert (admin only)
-- `PUT /central-alerts/v1/:id` - Update an existing alert (admin only)
-- `DELETE /central-alerts/v1/:id` - Delete an alert (admin only)
-
-**Alert Structure**:
-
-```json
-{
-  "id": "string",
-  "title": "string",
-  "message": "string",
-  "type": "success|info|warning|danger",
-  "dismissible": boolean,
-  "min_fossbilling_version": "string",
-  "max_fossbilling_version": "string",
-  "include_preview_branch": boolean,
-  "buttons": [
-    {
-      "text": "string",
-      "link": "string",
-      "type": "success|info|warning|danger"
-    }
-  ],
-  "datetime": "ISO 8601 timestamp"
-}
-```
+- `GET /list` - Public endpoint for fetching active alerts.
+- `GET /version/:version` - Fetch alerts targeted at a specific FOSSBilling version.
+- **Admin Endpoints**: `POST`, `PUT`, `DELETE` exist but require authentication (controlled by the admin interface).
 
 ## Configuration
 
-### KV Namespaces
+If you're running this yourself, you'll need a few things set up.
 
-The worker uses two KV namespaces:
+### Storage
 
-- **CACHE_KV**: Stores cached GitHub releases data (key: `gh-fossbilling-releases`)
-- **AUTH_KV**: Stores authentication tokens (key: `update_token`)
+We use [Cloudflare D1](https://developers.cloudflare.com/d1/) and [KV](https://developers.cloudflare.com/kv/).
 
-### D1 Database
-
-The worker uses a D1 database for central alerts:
-
-- **DB_CENTRAL_ALERTS**: Stores system-wide alerts with version targeting
+- **D1 Database** (`DB_CENTRAL_ALERTS`): Stores the alert messages.
+- **KV Namespace** (`CACHE_KV`): Caches GitHub API responses so we don't hit rate limits.
+- **KV Namespace** (`AUTH_KV`): Stores the `update_token` for secured endpoints.
 
 ### Environment Variables
 
-- **GITHUB_TOKEN**: Required for GitHub API access
-
-### Setting Up UPDATE_TOKEN
-
-To configure the update endpoint authentication:
-
-```bash
-# Store your UPDATE_TOKEN in AUTH_KV
-npx wrangler kv:key put --binding=AUTH_KV "update_token" "your-secure-token-here"
-```
-
-### Database Initialization
-
-To initialize the central alerts database:
-
-```bash
-# Run the database initialization script
-npm run init:db
-```
-
-This will create the necessary tables and insert sample data.
+- `GITHUB_TOKEN`: A GitHub Personal Access Token (classic) with public repo read access.
+- `UPDATE_TOKEN`: A secret token you define to secure release cache updates.
 
 ## Development
 
-### Setup
+Get the dependencies installed:
 
-1. Install dependencies:
+```bash
+npm install
+```
 
-   ```bash
-   npm install
+### Local Setup
+
+1. Create a `.dev.vars` file for your secrets:
+   ```env
+   GITHUB_TOKEN="your-token"
+   UPDATE_TOKEN="dev-secret"
    ```
 
-2. Set up your environment variables in `.dev.vars`:
-
-   ```
-   GITHUB_TOKEN="your-github-token"
-   UPDATE_TOKEN="your-update-token"
-   ```
-
-3. Initialize the database:
+2. Initialize the local D1 database:
    ```bash
    npm run init:db
    ```
 
-### Available Scripts
-
-- `npm run dev` - Start the development server
-- `npm run deploy` - Deploy to production
-- `npm run test` - Run tests
-- `npm run test:coverage` - Run tests with coverage
-- `npm run lint` - Run ESLint
-- `npm run lint:fix` - Fix ESLint issues
-- `npm run format` - Format code with Prettier
-- `npm run format:check` - Check code formatting
-- `npm run typecheck` - Run TypeScript type checking
-- `npm run init:db` - Initialize the central alerts database
-
-### Local Development
-
-1. Start the development server:
-
+3. Spin up the dev server:
    ```bash
    npm run dev
    ```
 
-2. The worker will be available at `http://localhost:8787`
+You can now hit endpoints at `http://localhost:8787`.
 
-3. Test the endpoints:
+### Testing
 
-   ```bash
-   # Get all versions
-   curl http://localhost:8787/versions/v1
+We use Vitest for testing. The suite includes unit tests for the endpoints and integration tests using the platform adapters.
 
-   # Get latest version
-   curl http://localhost:8787/versions/v1/latest
-
-   # Get alerts
-   curl http://localhost:8787/central-alerts/v1/list
-   ```
-
-## Response Codes
-
-- `200` - Success
-- `400` - Bad Request (invalid parameters)
-- `401` - Unauthorized (invalid or missing bearer token)
-- `404` - Not Found (resource doesn't exist or route not found)
-- `500` - Internal Server Error
-
-## Error Response Format
-
-```json
-{
-  "result": null,
-  "error": {
-    "message": "Error description",
-    "code": "ERROR_CODE"
-  }
-}
+```bash
+npm run test
 ```
