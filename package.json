@@ -26,7 +26,7 @@
     "@types/semver": "^7.7.1",
     "@typescript-eslint/eslint-plugin": "^8.46.4",
     "@typescript-eslint/parser": "^8.46.4",
-    "@vitest/coverage-istanbul": "~3.2.0",
+    "@vitest/coverage-istanbul": "~4.0.0",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jest": "^29.2.2",
@@ -35,7 +35,7 @@
     "typescript": "^5.9.3",
     "tsx": "^4.19.2",
     "typescript-eslint": "^8.46.4",
-    "vitest": "^3.2.4",
+    "vitest": "^4.0.0",
     "wrangler": "^4.37.1"
   }
 }
