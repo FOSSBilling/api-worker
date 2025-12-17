@@ -28,7 +28,7 @@ export class CentralAlertsDatabase {
         max_fossbilling_version,
         include_preview_branch,
         buttons,
-        "datetime",
+        "datetime"
       FROM central_alerts
       ORDER BY "datetime" DESC
     `;
