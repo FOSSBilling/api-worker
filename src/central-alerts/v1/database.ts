@@ -1,9 +1,6 @@
 import { CentralAlert } from "./interfaces";
 import { IDatabase } from "../../platform/interfaces";
 
-export interface CentralAlertWithButtons extends CentralAlert {
-}
-
 export interface DatabaseError {
   message: string;
   code?: string;
@@ -17,7 +14,7 @@ export class CentralAlertsDatabase {
   }
 
   async getAllAlerts(): Promise<{
-    data: CentralAlertWithButtons[] | null;
+    data: CentralAlert[] | null;
     error: DatabaseError | null;
   }> {
     const query = `
@@ -49,7 +46,7 @@ export class CentralAlertsDatabase {
             ? JSON.parse(alertData.buttons)
             : (alertData.buttons as unknown[]) || []
       };
-    }) as CentralAlertWithButtons[];
+    }) as CentralAlert[];
 
     return { data: alerts, error: null };
   }
