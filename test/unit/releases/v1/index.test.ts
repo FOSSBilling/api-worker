@@ -12,7 +12,8 @@ import { getReleases } from "../../../../src/versions/v1";
 import { Releases } from "../../../../src/versions/v1/interfaces";
 
 vi.mock("../../../../src/versions/v1", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../../../src/versions/v1")>();
+  const actual =
+    await importOriginal<typeof import("../../../../src/versions/v1")>();
   return {
     ...actual,
     getReleases: vi.fn()
@@ -153,4 +154,3 @@ describe("Releases API v1 (Deprecated)", () => {
     });
   });
 });
-
