@@ -32,8 +32,9 @@ export function createNodeBindings(cacheDbPath?: string): IPlatformBindings {
 }
 
 /**
- * Normalizes a file path by removing trailing dots, slashes, and common
- * extensions to prevent malformed paths when appending suffixes.
+ * Normalizes a file path by removing trailing dots, slashes, and specific
+ * SQLite-related extensions (".sqlite", ".db", ".sqlite3") to prevent
+ * malformed paths when appending suffixes.
  */
 function normalizePath(path: string): string {
   // Remove trailing dots and slashes

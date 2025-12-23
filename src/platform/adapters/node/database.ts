@@ -26,7 +26,7 @@ export class SQLiteAdapter implements IDatabase {
   }
 
   async batch(statements: IPreparedStatement[]): Promise<unknown[]> {
-    this.db.exec("BEGIN");
+    this.db.exec("BEGIN IMMEDIATE");
     const results = [];
 
     try {
@@ -34,8 +34,8 @@ export class SQLiteAdapter implements IDatabase {
         if (stmt instanceof SQLiteStatement) {
           const result = await stmt.run();
 
-          if (!result.success && result.error) {
-            throw new Error(result.error);
+          if (!result.success) {
+            throw new Error(result.error ?? "Statement execution failed");
           }
 
           results.push(result);
@@ -85,8 +85,12 @@ class SQLiteStatement implements IPreparedStatement {
       const result = this.statement.get(...(this.params as any[]));
       return (result as T) ?? null;
     } catch (error) {
-      console.error("SQLiteStatement.first: failed to execute query", error);
-      return null;
+      console.error(
+        "SQLiteStatement.first: failed to execute query",
+        { query: this.query, params: this.params },
+        error
+      );
+      throw error;
     }
   }
 

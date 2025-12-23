@@ -164,21 +164,87 @@ export class SQLiteCacheAdapter implements ICache {
   }
 
   /**
+   * Determines whether running VACUUM is likely to reclaim a significant
+   * amount of space.
+   *
+   * Uses SQLite PRAGMAs page_count and freelist_count to estimate the ratio
+   * of free pages. If any error occurs while querying, this method returns
+   * true to preserve the previous behavior of always vacuuming.
+   */
+  private shouldVacuum(): boolean {
+    try {
+      const pageCountRow = this.db.prepare("PRAGMA page_count").get() as
+        | { page_count: number }
+        | Record<string, number>
+        | undefined;
+      const freelistRow = this.db.prepare("PRAGMA freelist_count").get() as
+        | { freelist_count: number }
+        | Record<string, number>
+        | undefined;
+
+      const pageCount =
+        (pageCountRow &&
+          (pageCountRow as any).page_count ??
+          (pageCountRow ? (Object.values(pageCountRow)[0] as number) : 0)) || 0;
+      const freelistCount =
+        (freelistRow &&
+          (freelistRow as any).freelist_count ??
+          (freelistRow ? (Object.values(freelistRow)[0] as number) : 0)) || 0;
+
+      if (pageCount === 0 || freelistCount === 0) {
+        return false;
+      }
+
+      const freeRatio = freelistCount / pageCount;
+      // Only vacuum if at least 20% of pages are free.
+      return freeRatio >= 0.2;
+    } catch {
+      // If we can't determine the freelist, fall back to vacuuming to keep
+      // behavior close to the original implementation.
+      return true;
+    }
+  }
+
+  /**
    * Removes all entries from the cache.
    *
-   * Deletes both permanent and expired entries. Performs VACUUM
-   * to reclaim disk space for file-based databases.
+   * Deletes both permanent and expired entries. Optionally performs VACUUM
+   * to reclaim disk space for file-based databases when it is likely to
+   * recover a significant amount of free space.
    *
    * @throws Error if the database operation fails
    */
   clearAll(): void {
     try {
       this.db.exec(`DELETE FROM cache`);
-      this.db.exec(`VACUUM`);
+      if (this.shouldVacuum()) {
+        this.db.exec(`VACUUM`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Failed to clear cache: ${message}`,
+        error instanceof Error ? { cause: error } : undefined
+      );
+    }
+  }
+
+  /**
+   * Closes the underlying SQLite database connection.
+   *
+   * For file-based databases, this releases file descriptors and ensures
+   * all pending changes are flushed to disk. After calling this method,
+   * the cache instance should no longer be used.
+   *
+   * @throws Error if closing the database fails
+   */
+  close(): void {
+    try {
+      this.db.close();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to close cache database: ${message}`,
         error instanceof Error ? { cause: error } : undefined
       );
     }

@@ -15,15 +15,9 @@ describe("createNodeBindings - path normalization", () => {
   ];
 
   afterEach(() => {
-    // Clean up test files
-    testPaths.forEach((basePath) => {
-      try {
-        if (existsSync(`${basePath}.kv`)) unlinkSync(`${basePath}.kv`);
-        if (existsSync(`${basePath}.auth`)) unlinkSync(`${basePath}.auth`);
-      } catch {
-        // Ignore cleanup errors
-      }
-    });
+    // Cleanup of any underlying database files is intentionally omitted here
+    // to avoid deleting files that may still have open SQLite connections,
+    // which can cause failures especially on Windows.
   });
 
   it("should handle paths without extensions", () => {
