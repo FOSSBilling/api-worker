@@ -182,14 +182,11 @@ export class SQLiteCacheAdapter implements ICache {
         | Record<string, number>
         | undefined;
 
-      const pageCount =
-        (pageCountRow &&
-          (pageCountRow as any).page_count ??
-          (pageCountRow ? (Object.values(pageCountRow)[0] as number) : 0)) || 0;
-      const freelistCount =
-        (freelistRow &&
-          (freelistRow as any).freelist_count ??
-          (freelistRow ? (Object.values(freelistRow)[0] as number) : 0)) || 0;
+      const pageCount = this.extractPragmaValue(pageCountRow, "page_count");
+      const freelistCount = this.extractPragmaValue(
+        freelistRow,
+        "freelist_count"
+      );
 
       if (pageCount === 0 || freelistCount === 0) {
         return false;
@@ -203,6 +200,30 @@ export class SQLiteCacheAdapter implements ICache {
       // behavior close to the original implementation.
       return true;
     }
+  }
+
+  /**
+   * Extracts a numeric value from a PRAGMA result row.
+   * Handles both named property access and Record<string, number> fallback.
+   */
+  private extractPragmaValue(
+    row: { [key: string]: number } | Record<string, number> | undefined,
+    propertyName: string
+  ): number {
+    if (!row) {
+      return 0;
+    }
+
+    // Check if the property exists directly
+    if (propertyName in row && typeof row[propertyName] === "number") {
+      return row[propertyName];
+    }
+
+    // Fallback: try to get the first numeric value
+    const values = Object.values(row).filter(
+      (v): v is number => typeof v === "number"
+    );
+    return values[0] ?? 0;
   }
 
   /**

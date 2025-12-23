@@ -2,7 +2,6 @@ import { describe, it, expect, afterEach } from "vitest";
 import { createNodeBindings } from "../../src/platform/adapters/node/index";
 
 describe("createNodeBindings - path normalization", () => {
-
   afterEach(() => {
     // Cleanup of any underlying database files is intentionally omitted here
     // to avoid deleting files that may still have open SQLite connections,
