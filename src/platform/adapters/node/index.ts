@@ -1,21 +1,33 @@
-// Reference implementation for Node.js
-// Install dependencies: npm install pg ioredis @types/pg @types/ioredis
-
 import { IPlatformBindings } from "../../interfaces";
-import { InMemoryCacheAdapter } from "./cache";
+import { createMemoryCache, createFileCache } from "./cache";
 import { NodeEnvironmentAdapter } from "./environment";
 
-export function createNodeBindings(): IPlatformBindings {
+export function createNodeBindings(cacheDbPath?: string): IPlatformBindings {
+  const cache = cacheDbPath
+    ? createFileCache(cacheDbPath)
+    : createMemoryCache();
+
   return {
     databases: {},
     caches: {
-      CACHE_KV: new InMemoryCacheAdapter(),
-      AUTH_KV: new InMemoryCacheAdapter()
+      CACHE_KV: cache,
+      AUTH_KV: cache
     },
     environment: new NodeEnvironmentAdapter()
   };
 }
 
-export { InMemoryCacheAdapter, RedisAdapter } from "./cache";
+export {
+  SQLiteCacheAdapter,
+  createMemoryCache,
+  createFileCache,
+  InMemoryCacheAdapter,
+  RedisAdapter
+} from "./cache";
 export { NodeEnvironmentAdapter } from "./environment";
-export { PostgreSQLAdapter } from "./database";
+export {
+  SQLiteAdapter,
+  createInMemoryDatabase,
+  createFileDatabase,
+  createDefaultAdapter
+} from "./database";
