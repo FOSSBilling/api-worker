@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { CentralAlertsDatabase } from "../../../src/services/central-alerts/v1/database";
+import { CentralAlertsDatabase } from "../../../../src/services/central-alerts/v1/database";
 
 // Mock D1 Database for testing
 class MockD1Database {
@@ -254,8 +254,7 @@ describe("CentralAlertsDatabase", () => {
 
   beforeAll(() => {
     mockD1 = new MockD1Database();
-    // @ts-expect-error - We're mocking the D1 database
-    db = new CentralAlertsDatabase(mockD1);
+    db = new CentralAlertsDatabase(mockD1 as never);
   });
 
   describe("getAllAlerts", () => {

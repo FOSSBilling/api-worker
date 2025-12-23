@@ -8,7 +8,7 @@ import app from "../../../../src/app";
 import {
   mockGitHubReleases,
   mockComposerJson
-} from "../../../fixtures/github-releases";
+} from "../../../mocks/github-releases";
 import { suppressConsole } from "../../../utils/mock-helpers";
 import {
   MockGitHubRequest,

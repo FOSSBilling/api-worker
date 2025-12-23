@@ -3,7 +3,7 @@ import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
 export default defineWorkersConfig({
   test: {
     // Exclude Node.js tests from Cloudflare Workers environment
-    exclude: ["**/node_modules/**", "**/test/node/**"],
+    exclude: ["**/node_modules/**", "**/test/lib/adapters/node/**"],
 
     // Test timeout configuration
     testTimeout: 30000, // 30 seconds max per test

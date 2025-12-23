@@ -4,17 +4,17 @@ import {
   createExecutionContext,
   waitOnExecutionContext
 } from "cloudflare:test";
-import app from "../../src/app";
+import app from "../../../src/app";
 import {
   mockGitHubReleases,
   mockComposerJson
-} from "../fixtures/github-releases";
-import { setupGitHubApiMock } from "../utils/mock-helpers";
+} from "../../mocks/github-releases";
+import { setupGitHubApiMock } from "../../utils/mock-helpers";
 import {
   MockGitHubRequest,
   VersionsResponse,
   ApiResponse
-} from "../utils/test-types";
+} from "../../utils/test-types";
 
 vi.mock("@octokit/request", () => ({
   request: vi.fn()

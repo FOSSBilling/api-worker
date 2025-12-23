@@ -5,7 +5,7 @@ import {
   waitOnExecutionContext
 } from "cloudflare:test";
 import app from "../../../../src/app";
-import { mockReleases } from "../../../fixtures/releases";
+import { mockReleases } from "../../../mocks/releases";
 import { suppressConsole } from "../../../utils/mock-helpers";
 import type { ReleasesResponse } from "../../../utils/test-types";
 import { getReleases } from "../../../../src/services/versions/v1";
