@@ -1,6 +1,23 @@
 import { IDatabase, IPreparedStatement } from "../../interfaces";
 import { DatabaseSync } from "node:sqlite";
 
+/**
+ * SQLite database adapter for Node.js environments.
+ *
+ * Provides a database interface using Node.js built-in SQLite module.
+ * Requires Node.js 22.5+ for node:sqlite support.
+ *
+ * @example
+ * ```ts
+ * import { DatabaseSync } from "node:sqlite";
+ * import { SQLiteAdapter } from "./database";
+ *
+ * const db = new DatabaseSync("mydb.sqlite");
+ * const adapter = new SQLiteAdapter(db);
+ * const stmt = adapter.prepare("SELECT * FROM users WHERE id = ?");
+ * const result = await stmt.bind(1).first();
+ * ```
+ */
 export class SQLiteAdapter implements IDatabase {
   constructor(private db: DatabaseSync) {}
 
@@ -53,20 +70,13 @@ class SQLiteStatement implements IPreparedStatement {
   }
 
   async all<T = unknown>(): Promise<{ results?: T[]; success: boolean }> {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const results = this.statement.all(...(this.params as any[]));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const results = this.statement.all(...(this.params as any[]));
 
-      return {
-        results: results as T[],
-        success: true
-      };
-    } catch {
-      return {
-        results: undefined,
-        success: false
-      };
-    }
+    return {
+      results: results as T[],
+      success: true
+    };
   }
 
   async first<T = unknown>(): Promise<T | null> {
@@ -114,7 +124,17 @@ export function createInMemoryDatabase(): DatabaseSync {
 }
 
 export function createFileDatabase(filename: string): DatabaseSync {
-  return new DatabaseSync(filename);
+  try {
+    return new DatabaseSync(filename);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to create SQLite database at "${filename}": ${message}`,
+      {
+        cause: error instanceof Error ? error : undefined
+      }
+    );
+  }
 }
 
 export function createDefaultAdapter(): SQLiteAdapter {
