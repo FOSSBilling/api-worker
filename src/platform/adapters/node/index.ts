@@ -51,9 +51,7 @@ function normalizePath(path: string): string {
 export {
   SQLiteCacheAdapter,
   createMemoryCache,
-  createFileCache,
-  InMemoryCacheAdapter,
-  RedisAdapter
+  createFileCache
 } from "./cache";
 export { NodeEnvironmentAdapter } from "./environment";
 export {

@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { DatabaseSync } from "node:sqlite";
+import { existsSync, unlinkSync } from "node:fs";
 import {
   SQLiteCacheAdapter,
   createMemoryCache,
@@ -108,6 +109,25 @@ describe("SQLiteCacheAdapter - File", () => {
 
   beforeEach(() => {
     cache = createFileCache(testDbPath);
+  });
+
+  afterEach(() => {
+    // Close the database connection to release file handles
+    if (cache) {
+      try {
+        cache.close();
+      } catch {
+        // Ignore errors during cleanup
+      }
+    }
+    // Clean up the test database file
+    if (existsSync(testDbPath)) {
+      try {
+        unlinkSync(testDbPath);
+      } catch {
+        // Ignore errors if file doesn't exist or can't be deleted
+      }
+    }
   });
 
   it("should persist data to file", async () => {
