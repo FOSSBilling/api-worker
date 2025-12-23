@@ -21,11 +21,11 @@ The worker exposes three main services:
 
 We've structured the app to separate the core logic from the specific runtime environment (Cloudflare, Node, etc.).
 
-- **Application Logic**: Found in `src/versions`, `src/central-alerts`, etc. These feature modules don't know they are running on Cloudflare.
-- **Platform Layer**: Located in `src/platform`. This defines interfaces for things like Cache, Database, and Environment variables.
+- **Application Logic**: Found in `src/services/versions/v1`, `src/services/central-alerts/v1`, etc. These feature modules don't know they are running on Cloudflare.
+- **Platform Layer**: Located in `src/lib`. This defines interfaces for things like Cache, Database, and Environment variables.
 - **Adapters**:
-  - `src/platform/adapters/cloudflare`: Real implementations using KV and D1.
-  - `src/platform/adapters/node`: Reference implementations (useful for testing or alternative deployments).
+- `src/lib/adapters/cloudflare`: Real implementations using KV and D1.
+- `src/lib/adapters/node`: Reference implementations (useful for testing or alternative deployments).
 
 ## APIs
 
