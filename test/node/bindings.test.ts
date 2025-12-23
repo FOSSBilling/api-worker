@@ -1,6 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { createNodeBindings } from "../../src/platform/adapters/node/index";
-import { existsSync, unlinkSync } from "node:fs";
 
 describe("createNodeBindings - path normalization", () => {
   const testPaths = [
