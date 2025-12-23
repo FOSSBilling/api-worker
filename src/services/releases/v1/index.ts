@@ -7,7 +7,7 @@ import { trimTrailingSlash } from "hono/trailing-slash";
 import { diff as semverDiff, compare as semverCompare } from "semver";
 import { FOSSBillingVersion } from "./interfaces";
 import { getReleases } from "../../versions/v1";
-import { getPlatform } from "../../platform/middleware";
+import { getPlatform } from "../../../lib/middleware";
 
 const releasesV1 = new Hono<{ Bindings: CloudflareBindings; strict: true }>();
 

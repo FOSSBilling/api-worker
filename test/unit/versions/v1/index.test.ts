@@ -4,7 +4,7 @@ import {
   createExecutionContext,
   waitOnExecutionContext
 } from "cloudflare:test";
-import app from "../../../../src";
+import app from "../../../../src/app";
 
 import {
   mockGitHubReleases,

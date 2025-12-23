@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { createNodeBindings } from "../../src/platform/adapters/node/index";
+import { createNodeBindings } from "../../src/lib/adapters/node/index";
 
 describe("createNodeBindings - path normalization", () => {
   afterEach(() => {

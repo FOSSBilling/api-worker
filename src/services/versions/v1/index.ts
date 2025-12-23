@@ -13,8 +13,8 @@ import {
   valid as semverValid
 } from "semver";
 import { Releases, ReleaseDetails } from "./interfaces";
-import { getPlatform } from "../../platform/middleware";
-import { ICache } from "../../platform/interfaces";
+import { getPlatform } from "../../../lib/middleware";
+import { ICache } from "../../../lib/interfaces";
 
 // Cache for UPDATE_TOKEN to avoid repeated KV lookups
 let updateTokenCache: string | null = null;

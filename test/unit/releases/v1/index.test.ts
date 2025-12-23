@@ -4,16 +4,18 @@ import {
   createExecutionContext,
   waitOnExecutionContext
 } from "cloudflare:test";
-import app from "../../../../src";
+import app from "../../../../src/app";
 import { mockReleases } from "../../../fixtures/releases";
 import { suppressConsole } from "../../../utils/mock-helpers";
 import type { ReleasesResponse } from "../../../utils/test-types";
-import { getReleases } from "../../../../src/versions/v1";
-import { Releases } from "../../../../src/versions/v1/interfaces";
+import { getReleases } from "../../../../src/services/versions/v1";
+import { Releases } from "../../../../src/services/versions/v1/interfaces";
 
-vi.mock("../../../../src/versions/v1", async (importOriginal) => {
+vi.mock("../../../../src/services/versions/v1", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../../../src/versions/v1")>();
+    await importOriginal<
+      typeof import("../../../../src/services/versions/v1")
+    >();
   return {
     ...actual,
     getReleases: vi.fn()

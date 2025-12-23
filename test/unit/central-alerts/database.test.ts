@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { CentralAlertsDatabase } from "../../../src/central-alerts/v1/database";
+import { CentralAlertsDatabase } from "../../../src/services/central-alerts/v1/database";
 
 // Mock D1 Database for testing
 class MockD1Database {

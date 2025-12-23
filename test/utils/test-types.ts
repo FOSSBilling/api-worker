@@ -3,7 +3,7 @@
  */
 
 import { vi } from "vitest";
-import type { CentralAlert } from "../../src/central-alerts/v1/interfaces";
+import type { CentralAlert } from "../../src/services/central-alerts/v1/interfaces";
 
 // API Response Types
 export interface ApiResponse<T = unknown> {
@@ -131,7 +131,7 @@ export interface TestEnv {
 }
 
 // Export CentralAlert type
-export type { CentralAlert } from "../../src/central-alerts/v1/interfaces";
+export type { CentralAlert } from "../../src/services/central-alerts/v1/interfaces";
 
 // Spy Types
 export type FetchSpy = ReturnType<typeof vi.spyOn>;

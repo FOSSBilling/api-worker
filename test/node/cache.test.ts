@@ -5,7 +5,7 @@ import {
   SQLiteCacheAdapter,
   createMemoryCache,
   createFileCache
-} from "../../src/platform/adapters/node/cache";
+} from "../../src/lib/adapters/node/cache";
 
 describe("SQLiteCacheAdapter - Memory", () => {
   let cache: SQLiteCacheAdapter;

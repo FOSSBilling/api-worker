@@ -10,7 +10,7 @@ import {
   createExecutionContext,
   waitOnExecutionContext
 } from "cloudflare:test";
-import app from "../../src/index";
+import app from "../../src/app/index";
 import { mockD1Database } from "../utils/d1-mock";
 import {
   ApiResponse,

@@ -3,7 +3,7 @@ import {
   IPreparedStatement,
   ICache,
   IEnvironment
-} from "../../src/platform/interfaces";
+} from "../../src/lib/interfaces";
 
 export class MockDatabaseAdapter implements IDatabase {
   private data = new Map<string, unknown[]>();

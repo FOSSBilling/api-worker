@@ -6,7 +6,7 @@
  * @license AGPL-3.0
  */
 
-import { Releases } from "../../src/versions/v1/interfaces";
+import { Releases } from "../../src/services/versions/v1/interfaces";
 
 export const mockReleases: Releases = {
   "0.5.0": {

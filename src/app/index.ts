@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { contextStorage } from "hono/context-storage";
 import { HTTPException } from "hono/http-exception";
-import centralAlertsV1 from "./central-alerts/v1";
-import releasesV1 from "./releases/v1";
-import versionsV1 from "./versions/v1";
-import { platformMiddleware } from "./platform/middleware";
-import { createCloudflareBindings } from "./platform/adapters/cloudflare";
+import centralAlertsV1 from "../services/central-alerts/v1";
+import releasesV1 from "../services/releases/v1";
+import versionsV1 from "../services/versions/v1";
+import { platformMiddleware } from "../lib/middleware";
+import { createCloudflareBindings } from "../lib/adapters/cloudflare";
 
 const app = new Hono<{ Bindings: CloudflareBindings }>();
 

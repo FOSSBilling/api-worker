@@ -2,7 +2,7 @@
  * Mock D1 Database for testing
  * Implements the D1Database interface with in-memory storage
  */
-import { CentralAlert } from "../../src/central-alerts/v1/interfaces";
+import { CentralAlert } from "../../src/services/central-alerts/v1/interfaces";
 
 type DatabaseAlert = Omit<CentralAlert, "buttons"> & {
   created_at: string;

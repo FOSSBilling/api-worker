@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { trimTrailingSlash } from "hono/trailing-slash";
 import { CentralAlertsDatabase } from "./database";
-import { getPlatform } from "../../platform/middleware";
+import { getPlatform } from "../../../lib/middleware";
 
 const centralAlertsV1 = new Hono<{ Bindings: CloudflareBindings }>();
 

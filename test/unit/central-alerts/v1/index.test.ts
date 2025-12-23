@@ -4,7 +4,7 @@ import {
   createExecutionContext,
   waitOnExecutionContext
 } from "cloudflare:test";
-import app from "../../../../src";
+import app from "../../../../src/app";
 import { mockD1Database } from "../../../utils/d1-mock";
 import type { CentralAlertsResponse } from "../../../utils/test-types";
 

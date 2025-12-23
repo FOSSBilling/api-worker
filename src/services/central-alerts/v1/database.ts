@@ -1,5 +1,5 @@
 import { CentralAlert } from "./interfaces";
-import { IDatabase } from "../../platform/interfaces";
+import { IDatabase } from "../../../lib/interfaces";
 
 export interface DatabaseError {
   message: string;
