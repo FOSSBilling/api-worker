@@ -50,7 +50,7 @@ class SQLiteStatement implements IPreparedStatement {
     const statement = this.db.prepare(this.query);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = statement.get(...(this.params as any[]));
-    return (result as T) || null;
+    return (result as T) ?? null;
   }
 
   async run(): Promise<{

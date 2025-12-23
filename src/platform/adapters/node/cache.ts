@@ -14,42 +14,69 @@ export class SQLiteCacheAdapter implements ICache {
       )
     `);
     this.db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_cache_ttl ON cache(expire_at)
+      CREATE INDEX IF NOT EXISTS idx_cache_expire_at ON cache(expire_at)
     `);
   }
 
   async get(key: string): Promise<string | null> {
-    const stmt = this.db.prepare(
-      `SELECT value FROM cache 
+    try {
+      const stmt = this.db.prepare(
+        `SELECT value FROM cache 
        WHERE key = ? AND (expire_at IS NULL OR expire_at > ?)
        LIMIT 1`
-    );
+      );
 
-    const result = stmt.get(key, Date.now()) as { value: string } | undefined;
-    return result?.value ?? null;
+      const result = stmt.get(key, Date.now()) as { value: string } | undefined;
+      return result?.value ?? null;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to get cache entry for key "${key}": ${message}`,
+        error instanceof Error ? { cause: error } : undefined
+      );
+    }
   }
 
   async put(key: string, value: string, options?: CacheOptions): Promise<void> {
-    let expireAt: number | null = null;
-    const now = Date.now();
+    try {
+      let expireAt: number | null = null;
+      const now = Date.now();
 
-    if (options?.expirationTtl) {
-      expireAt = now + options.expirationTtl * 1000;
-    } else if (options?.expiration) {
-      expireAt = options.expiration * 1000;
-    }
+      if (options?.expirationTtl) {
+        expireAt = now + options.expirationTtl * 1000;
+      } else if (options?.expiration) {
+        expireAt = options.expiration * 1000;
+      }
 
-    const stmt = this.db.prepare(`
+      const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO cache (key, value, expire_at) 
       VALUES (?, ?, ?)
     `);
 
-    stmt.run(key, value, expireAt);
+      stmt.run(key, value, expireAt);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to put cache entry for key "${key}": ${message}`,
+        error instanceof Error ? { cause: error } : undefined
+      );
+    }
   }
 
   async delete(key: string): Promise<void> {
-    const stmt = this.db.prepare(`DELETE FROM cache WHERE key = ?`);
-    stmt.run(key);
+    try {
+      const stmt = this.db.prepare(`DELETE FROM cache WHERE key = ?`);
+      stmt.run(key);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to delete cache entry for key "${key}": ${message}`,
+        error instanceof Error ? { cause: error } : undefined
+      );
+    }
   }
 
   clearExpired(): void {
