@@ -119,7 +119,11 @@ describe("SQLiteCacheAdapter - File", () => {
   it("should reload data from file", async () => {
     await cache.put("key1", "value1");
     const cache2 = createFileCache(testDbPath);
-    const result = await cache2.get("key1");
-    expect(result).toBe("value1");
+    try {
+      const result = await cache2.get("key1");
+      expect(result).toBe("value1");
+    } finally {
+      await cache2.close();
+    }
   });
 });
