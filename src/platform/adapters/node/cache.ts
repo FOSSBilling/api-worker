@@ -99,6 +99,7 @@ export class SQLiteCacheAdapter implements ICache {
   clearAll(): void {
     try {
       this.db.exec(`DELETE FROM cache`);
+      this.db.exec(`VACUUM`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(
@@ -115,8 +116,20 @@ export function createMemoryCache(): SQLiteCacheAdapter {
 }
 
 export function createFileCache(dbPath: string): SQLiteCacheAdapter {
-  const db = new DatabaseSync(dbPath);
-  return new SQLiteCacheAdapter(db);
+  if (typeof dbPath !== "string" || dbPath.trim() === "") {
+    throw new Error("Invalid database path provided to createFileCache");
+  }
+
+  try {
+    const db = new DatabaseSync(dbPath);
+    return new SQLiteCacheAdapter(db);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to create file cache at path "${dbPath}": ${message}`,
+      error instanceof Error ? { cause: error } : undefined
+    );
+  }
 }
 
 export class InMemoryCacheAdapter implements ICache {
