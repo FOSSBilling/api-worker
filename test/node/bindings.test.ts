@@ -2,16 +2,6 @@ import { describe, it, expect, afterEach } from "vitest";
 import { createNodeBindings } from "../../src/platform/adapters/node/index";
 
 describe("createNodeBindings - path normalization", () => {
-  const testPaths = [
-    "/tmp/test-binding-normal",
-    "/tmp/test-binding.db",
-    "/tmp/test-binding.sqlite",
-    "/tmp/test-binding.sqlite3",
-    "/tmp/test-binding.",
-    "/tmp/test-binding..",
-    "/tmp/test-binding/",
-    "./test-binding"
-  ];
 
   afterEach(() => {
     // Cleanup of any underlying database files is intentionally omitted here
