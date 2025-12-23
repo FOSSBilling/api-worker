@@ -80,12 +80,30 @@ export class SQLiteCacheAdapter implements ICache {
   }
 
   clearExpired(): void {
-    const stmt = this.db.prepare(`DELETE FROM cache WHERE expire_at <= ?`);
-    stmt.run(Date.now());
+    try {
+      const stmt = this.db.prepare(`DELETE FROM cache WHERE expire_at <= ?`);
+      stmt.run(Date.now());
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to clear expired cache entries: ${message}`,
+        error instanceof Error ? { cause: error } : undefined
+      );
+    }
   }
 
   clearAll(): void {
-    this.db.exec(`DELETE FROM cache`);
+    try {
+      this.db.exec(`DELETE FROM cache`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to clear cache: ${message}`,
+        error instanceof Error ? { cause: error } : undefined
+      );
+    }
   }
 }
 
