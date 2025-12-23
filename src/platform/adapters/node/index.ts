@@ -15,10 +15,10 @@ import { NodeEnvironmentAdapter } from "./environment";
  */
 export function createNodeBindings(cacheDbPath?: string): IPlatformBindings {
   const cacheKv = cacheDbPath
-    ? createFileCache(`${cacheDbPath}.kv`)
+    ? createFileCache(`${normalizePath(cacheDbPath)}.kv`)
     : createMemoryCache();
   const authKv = cacheDbPath
-    ? createFileCache(`${cacheDbPath}.auth`)
+    ? createFileCache(`${normalizePath(cacheDbPath)}.auth`)
     : createMemoryCache();
 
   return {
@@ -29,6 +29,20 @@ export function createNodeBindings(cacheDbPath?: string): IPlatformBindings {
     },
     environment: new NodeEnvironmentAdapter()
   };
+}
+
+/**
+ * Normalizes a file path by removing trailing dots, slashes, and common
+ * extensions to prevent malformed paths when appending suffixes.
+ */
+function normalizePath(path: string): string {
+  // Remove trailing dots and slashes
+  let normalized = path.replace(/[./]+$/, "");
+
+  // Remove common extensions if present
+  normalized = normalized.replace(/\.(?:sqlite|db|sqlite3)$/i, "");
+
+  return normalized;
 }
 
 export {
