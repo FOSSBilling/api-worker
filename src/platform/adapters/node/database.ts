@@ -74,7 +74,8 @@ class SQLiteStatement implements IPreparedStatement {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = this.statement.get(...(this.params as any[]));
       return (result as T) ?? null;
-    } catch {
+    } catch (error) {
+      console.error("SQLiteStatement.first: failed to execute query", error);
       return null;
     }
   }
