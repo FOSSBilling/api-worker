@@ -29,8 +29,7 @@ export class SQLiteCacheAdapter implements ICache {
       const result = stmt.get(key, Date.now()) as { value: string } | undefined;
       return result?.value ?? null;
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Failed to get cache entry for key "${key}": ${message}`,
         error instanceof Error ? { cause: error } : undefined
@@ -56,8 +55,7 @@ export class SQLiteCacheAdapter implements ICache {
 
       stmt.run(key, value, expireAt);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Failed to put cache entry for key "${key}": ${message}`,
         error instanceof Error ? { cause: error } : undefined
@@ -70,8 +68,7 @@ export class SQLiteCacheAdapter implements ICache {
       const stmt = this.db.prepare(`DELETE FROM cache WHERE key = ?`);
       stmt.run(key);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Failed to delete cache entry for key "${key}": ${message}`,
         error instanceof Error ? { cause: error } : undefined
@@ -84,8 +81,7 @@ export class SQLiteCacheAdapter implements ICache {
       const stmt = this.db.prepare(`DELETE FROM cache WHERE expire_at <= ?`);
       stmt.run(Date.now());
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Failed to clear expired cache entries: ${message}`,
         error instanceof Error ? { cause: error } : undefined
@@ -97,8 +93,7 @@ export class SQLiteCacheAdapter implements ICache {
     try {
       this.db.exec(`DELETE FROM cache`);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : String(error);
+      const message = error instanceof Error ? error.message : String(error);
       throw new Error(
         `Failed to clear cache: ${message}`,
         error instanceof Error ? { cause: error } : undefined

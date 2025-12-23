@@ -24,11 +24,14 @@ export class SQLiteAdapter implements IDatabase {
 
 class SQLiteStatement implements IPreparedStatement {
   private params: unknown[] = [];
+  private statement: ReturnType<DatabaseSync["prepare"]>;
 
   constructor(
     private db: DatabaseSync,
     private query: string
-  ) {}
+  ) {
+    this.statement = this.db.prepare(this.query);
+  }
 
   bind(...params: unknown[]): IPreparedStatement {
     this.params = params;
@@ -36,9 +39,8 @@ class SQLiteStatement implements IPreparedStatement {
   }
 
   async all<T = unknown>(): Promise<{ results?: T[]; success: boolean }> {
-    const statement = this.db.prepare(this.query);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const results = statement.all(...(this.params as any[]));
+    const results = this.statement.all(...(this.params as any[]));
 
     return {
       results: results as T[],
@@ -47,9 +49,8 @@ class SQLiteStatement implements IPreparedStatement {
   }
 
   async first<T = unknown>(): Promise<T | null> {
-    const statement = this.db.prepare(this.query);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = statement.get(...(this.params as any[]));
+    const result = this.statement.get(...(this.params as any[]));
     return (result as T) ?? null;
   }
 
@@ -63,9 +64,8 @@ class SQLiteStatement implements IPreparedStatement {
     };
   }> {
     try {
-      const statement = this.db.prepare(this.query);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = statement.run(...(this.params as any[]));
+      const result = this.statement.run(...(this.params as any[]));
 
       return {
         success: true,
