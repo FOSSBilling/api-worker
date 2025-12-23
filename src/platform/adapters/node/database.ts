@@ -9,16 +9,30 @@ export class SQLiteAdapter implements IDatabase {
   }
 
   async batch(statements: IPreparedStatement[]): Promise<unknown[]> {
+    this.db.exec("BEGIN");
     const results = [];
-    for (const stmt of statements) {
-      if (stmt instanceof SQLiteStatement) {
-        const result = await stmt.run();
-        results.push(result);
-      } else {
-        throw new Error("Invalid statement type for SQLite batch");
+
+    try {
+      for (const stmt of statements) {
+        if (stmt instanceof SQLiteStatement) {
+          const result = await stmt.run();
+
+          if (!result.success && result.error) {
+            throw new Error(result.error);
+          }
+
+          results.push(result);
+        } else {
+          throw new Error("Invalid statement type for SQLite batch");
+        }
       }
+
+      this.db.exec("COMMIT");
+      return results;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
     }
-    return results;
   }
 }
 
