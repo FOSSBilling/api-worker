@@ -3,15 +3,18 @@ import { createMemoryCache, createFileCache } from "./cache";
 import { NodeEnvironmentAdapter } from "./environment";
 
 export function createNodeBindings(cacheDbPath?: string): IPlatformBindings {
-  const cache = cacheDbPath
-    ? createFileCache(cacheDbPath)
+  const cacheKv = cacheDbPath
+    ? createFileCache(`${cacheDbPath}.kv`)
+    : createMemoryCache();
+  const authKv = cacheDbPath
+    ? createFileCache(`${cacheDbPath}.auth`)
     : createMemoryCache();
 
   return {
     databases: {},
     caches: {
-      CACHE_KV: cache,
-      AUTH_KV: cache
+      CACHE_KV: cacheKv,
+      AUTH_KV: authKv
     },
     environment: new NodeEnvironmentAdapter()
   };
