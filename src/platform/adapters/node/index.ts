@@ -37,8 +37,10 @@ export function createNodeBindings(cacheDbPath?: string): IPlatformBindings {
  * malformed paths when appending suffixes.
  */
 function normalizePath(path: string): string {
-  // Remove trailing dots and slashes
-  let normalized = path.replace(/[./]+$/, "");
+  // Remove trailing slashes
+  let normalized = path.replace(/\/+$/, "");
+  // Then remove trailing dots
+  normalized = normalized.replace(/\.+$/, "");
 
   // Remove common extensions if present
   normalized = normalized.replace(/\.(?:sqlite|db|sqlite3)$/i, "");
