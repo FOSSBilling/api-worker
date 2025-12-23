@@ -12,6 +12,8 @@
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "test": "vitest run",
+    "test:node": "vitest run --config vitest.node.config.ts",
+    "test:all": "npm run test && npm run test:node",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },

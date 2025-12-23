@@ -1,43 +1,75 @@
-// Reference implementation for PostgreSQL
-// Install pg: npm install pg @types/pg
-
 import { IDatabase, IPreparedStatement } from "../../interfaces";
+import { DatabaseSync } from "node:sqlite";
 
-interface PostgresResult {
-  rows: unknown[];
-  rowCount?: number | null;
-}
-
-interface PostgresPool {
-  query(text: string, params: unknown[]): Promise<PostgresResult>;
-}
-
-export class PostgreSQLAdapter implements IDatabase {
-  constructor(private pool: PostgresPool) {}
+/**
+ * SQLite database adapter for Node.js environments.
+ *
+ * Provides a database interface using Node.js built-in SQLite module.
+ * Requires Node.js 22.5+ for node:sqlite support.
+ *
+ * @example
+ * ```ts
+ * import { DatabaseSync } from "node:sqlite";
+ * import { SQLiteAdapter } from "./database";
+ *
+ * const db = new DatabaseSync("mydb.sqlite");
+ * const adapter = new SQLiteAdapter(db);
+ * const stmt = adapter.prepare("SELECT * FROM users WHERE id = ?");
+ * const result = await stmt.bind(1).first();
+ * ```
+ */
+export class SQLiteAdapter implements IDatabase {
+  constructor(private db: DatabaseSync) {}
 
   prepare(query: string): IPreparedStatement {
-    return new PostgreSQLStatement(this.pool, query);
+    return new SQLiteStatement(this.db, query);
   }
 
   async batch(statements: IPreparedStatement[]): Promise<unknown[]> {
-    const results = [];
-    for (const stmt of statements) {
-      results.push(await stmt.run());
+    try {
+      this.db.exec("BEGIN IMMEDIATE");
+      const results = [];
+
+      try {
+        for (const stmt of statements) {
+          if (stmt instanceof SQLiteStatement) {
+            const result = await stmt.run();
+
+            if (!result.success) {
+              throw new Error(result.error ?? "Statement execution failed");
+            }
+
+            results.push(result);
+          } else {
+            throw new Error("Invalid statement type for SQLite batch");
+          }
+        }
+
+        this.db.exec("COMMIT");
+        return results;
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Failed to execute batch: ${message}`,
+        error instanceof Error ? { cause: error } : undefined
+      );
     }
-    return results;
   }
 }
 
-class PostgreSQLStatement implements IPreparedStatement {
+class SQLiteStatement implements IPreparedStatement {
   private params: unknown[] = [];
-  private query: string;
+  private statement: ReturnType<DatabaseSync["prepare"]>;
 
   constructor(
-    private pool: PostgresPool,
-    query: string
+    private db: DatabaseSync,
+    private query: string
   ) {
-    let paramIndex = 1;
-    this.query = query.replace(/\?/g, () => `$${paramIndex++}`);
+    this.statement = this.db.prepare(this.query);
   }
 
   bind(...params: unknown[]): IPreparedStatement {
@@ -46,16 +78,28 @@ class PostgreSQLStatement implements IPreparedStatement {
   }
 
   async all<T = unknown>(): Promise<{ results?: T[]; success: boolean }> {
-    const result = await this.pool.query(this.query, this.params);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const results = this.statement.all(...(this.params as any[]));
+
     return {
-      results: result.rows as T[],
+      results: results as T[],
       success: true
     };
   }
 
   async first<T = unknown>(): Promise<T | null> {
-    const result = await this.pool.query(this.query, this.params);
-    return (result.rows[0] as T) || null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = this.statement.get(...(this.params as any[]));
+      return (result as T) ?? null;
+    } catch (error) {
+      console.error(
+        "SQLiteStatement.first: failed to execute query",
+        { query: this.query, params: this.params },
+        error
+      );
+      throw error;
+    }
   }
 
   async run(): Promise<{
@@ -68,11 +112,14 @@ class PostgreSQLStatement implements IPreparedStatement {
     };
   }> {
     try {
-      const result = await this.pool.query(this.query, this.params);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = this.statement.run(...(this.params as any[]));
+
       return {
         success: true,
         meta: {
-          changes: result.rowCount ?? 0
+          changes: Number(result.changes),
+          last_row_id: Number(result.lastInsertRowid)
         }
       };
     } catch (error) {
@@ -82,4 +129,27 @@ class PostgreSQLStatement implements IPreparedStatement {
       };
     }
   }
+}
+
+export function createInMemoryDatabase(): DatabaseSync {
+  return new DatabaseSync(":memory:");
+}
+
+export function createFileDatabase(filename: string): DatabaseSync {
+  try {
+    return new DatabaseSync(filename);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Failed to create SQLite database at "${filename}": ${message}`,
+      {
+        cause: error instanceof Error ? error : undefined
+      }
+    );
+  }
+}
+
+export function createDefaultAdapter(): SQLiteAdapter {
+  const db = createInMemoryDatabase();
+  return new SQLiteAdapter(db);
 }
