@@ -53,19 +53,30 @@ class SQLiteStatement implements IPreparedStatement {
   }
 
   async all<T = unknown>(): Promise<{ results?: T[]; success: boolean }> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const results = this.statement.all(...(this.params as any[]));
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const results = this.statement.all(...(this.params as any[]));
 
-    return {
-      results: results as T[],
-      success: true
-    };
+      return {
+        results: results as T[],
+        success: true
+      };
+    } catch {
+      return {
+        results: undefined,
+        success: false
+      };
+    }
   }
 
   async first<T = unknown>(): Promise<T | null> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = this.statement.get(...(this.params as any[]));
-    return (result as T) ?? null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = this.statement.get(...(this.params as any[]));
+      return (result as T) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   async run(): Promise<{
