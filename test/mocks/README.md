@@ -6,7 +6,6 @@ This directory contains mock implementations and mock data used across the test 
 
 - `mock-adapters.ts` - Mock implementations for database, cache, and environment adapters
 - `github-releases.ts` - Mock GitHub API release data
-- `releases.ts` - Processed release mock data for testing releases API
 
 ## Usage
 

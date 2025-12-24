@@ -16,9 +16,7 @@ import {
   ApiResponse,
   CentralAlertsResponse,
   GitHubContentResponse,
-  MockFetchResponse,
   MockGitHubRequest,
-  ReleasesResponse,
   VersionInfo,
   VersionsResponse
 } from "../utils/test-types";
@@ -102,36 +100,6 @@ describe("FOSSBilling API Worker - Main App", () => {
       expect(data).toHaveProperty("result");
       expect(data).toHaveProperty("error_code");
       expect(data).toHaveProperty("message");
-    });
-
-    it("should route /releases/v1 to releases service", async () => {
-      // Mock internal fetch call that releases service makes to versions service
-      const originalFetch = global.fetch;
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          result: {
-            "0.5.0": { version: "0.5.0" },
-            "0.6.0": { version: "0.6.0" }
-          }
-        })
-      } as MockFetchResponse);
-
-      const ctx = createExecutionContext();
-      const response = await app.request("/releases/v1", {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data: ReleasesResponse = await response.json();
-
-      // Should return releases API response format with deprecation headers
-      expect(data).toHaveProperty("result");
-      expect(data).toHaveProperty("error");
-      expect(response.headers.get("Deprecation")).toBeTruthy();
-      expect(response.headers.get("Sunset")).toBeTruthy();
-
-      // Restore fetch
-      global.fetch = originalFetch;
     });
 
     it("should route /central-alerts/v1/list to central alerts service", async () => {
@@ -231,34 +199,6 @@ describe("FOSSBilling API Worker - Main App", () => {
         throw new Error("Expected version info in response");
       }
       expect(data.result.version).toBe("0.6.0");
-    });
-
-    it("should allow releases service to fetch from versions service", async () => {
-      // Mock internal fetch call that releases service makes
-      const originalFetch = global.fetch;
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          result: {
-            "0.5.0": { version: "0.5.0" },
-            "0.6.0": { version: "0.6.0" }
-          }
-        })
-      } as MockFetchResponse);
-
-      const ctx = createExecutionContext();
-      const response = await app.request("/releases/v1", {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(200);
-      const data: ReleasesResponse = await response.json();
-
-      // Releases service internally calls versions service
-      expect(data.result).toBeTruthy();
-      expect(data.result.versions.length).toBeGreaterThan(0);
-
-      // Restore fetch
-      global.fetch = originalFetch;
     });
 
     it("should allow central alerts service to return static data", async () => {

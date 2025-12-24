@@ -1,11 +1,12 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { trimTrailingSlash } from "hono/trailing-slash";
 import { CentralAlertsDatabase } from "./database";
 import { getPlatform } from "../../../lib/middleware";
 
 const centralAlertsV1 = new Hono<{ Bindings: CloudflareBindings }>();
 
-centralAlertsV1.use(trimTrailingSlash());
+centralAlertsV1.use("/*", cors({ origin: "*" }), trimTrailingSlash());
 
 centralAlertsV1.get("/list", async (c) => {
   const platform = getPlatform(c);

@@ -12,7 +12,6 @@ import {
   ApiResponse,
   CentralAlertsResponse,
   MockGitHubRequest,
-  ReleasesResponse,
   VersionsResponse
 } from "../utils/test-types";
 
@@ -38,35 +37,28 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
   });
 
   describe("Service Discovery and Routing", () => {
-    it("should route to all three services correctly", async () => {
+    it("should route to all services correctly", async () => {
       const ctx1 = createExecutionContext();
       const versionsResponse = await app.request("/versions/v1", {}, env, ctx1);
       await waitOnExecutionContext(ctx1);
 
       const ctx2 = createExecutionContext();
-      const releasesResponse = await app.request("/releases/v1", {}, env, ctx2);
-      await waitOnExecutionContext(ctx2);
-
-      const ctx3 = createExecutionContext();
       const alertsResponse = await app.request(
         "/central-alerts/v1/list",
         {},
         env,
-        ctx3
+        ctx2
       );
-      await waitOnExecutionContext(ctx3);
+      await waitOnExecutionContext(ctx2);
 
       expect(versionsResponse.status).toBe(200);
-      expect(releasesResponse.status).toBe(200);
+      expect(alertsResponse.status).toBe(200);
 
       const versionsData = (await versionsResponse.json()) as VersionsResponse;
-      const releasesData = (await releasesResponse.json()) as ReleasesResponse;
       const alertsData = (await alertsResponse.json()) as CentralAlertsResponse;
 
       expect(versionsData).toHaveProperty("result");
       expect(versionsData).toHaveProperty("error_code", 0);
-      expect(releasesData).toHaveProperty("result");
-      expect(releasesData.result.versions).toBeInstanceOf(Array);
       expect(alertsData).toHaveProperty("result");
     });
 
@@ -92,27 +84,13 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
   });
 
   describe("Cross-Service Communication", () => {
-    it("should allow releases service to fetch from versions service", async () => {
-      const originalFetch = global.fetch;
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          result: {
-            "0.5.0": { version: "0.5.0" },
-            "0.6.0": { version: "0.6.0" }
-          }
-        })
-      } as Response);
-
+    it("should allow services to share cached data", async () => {
       const ctx = createExecutionContext();
-      const response = await app.request("/releases/v1", {}, env, ctx);
+      await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      expect(response.status).toBe(200);
-      const data = (await response.json()) as ReleasesResponse;
-      expect(data.result.versions.length).toBeGreaterThan(0);
-
-      global.fetch = originalFetch;
+      const cached = await env.CACHE_KV.get("gh-fossbilling-releases");
+      expect(cached).toBeTruthy();
     });
   });
 
@@ -165,7 +143,6 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
     it("should handle 404 for invalid service routes", async () => {
       const endpoints = [
         "/versions/v1/invalid-endpoint",
-        "/releases/v1/invalid",
         "/central-alerts/v1/invalid"
       ];
 
@@ -191,8 +168,7 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
     it("should maintain consistent response format across all services", async () => {
       const endpoints = [
         { path: "/versions/v1", fields: ["result", "error_code", "message"] },
-        { path: "/central-alerts/v1/list", fields: ["result"] },
-        { path: "/releases/v1", fields: ["result", "error"] }
+        { path: "/central-alerts/v1/list", fields: ["result"] }
       ];
 
       for (const { path, fields } of endpoints) {
@@ -213,8 +189,7 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
       const endpoints = [
         "/versions/v1",
         "/versions/v1/latest",
-        "/central-alerts/v1/list",
-        "/releases/v1"
+        "/central-alerts/v1/list"
       ];
 
       for (const endpoint of endpoints) {
@@ -245,7 +220,7 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
     });
 
     it("should handle OPTIONS preflight requests", async () => {
-      const endpoints = ["/versions/v1", "/releases/v1"];
+      const endpoints = ["/versions/v1"];
 
       for (const endpoint of endpoints) {
         const ctx = createExecutionContext();
@@ -267,7 +242,7 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
 
   describe("Headers and Middleware", () => {
     it("should include CORS headers on all responses", async () => {
-      const endpoints = ["/versions/v1", "/releases/v1"];
+      const endpoints = ["/versions/v1", "/central-alerts/v1/list"];
 
       for (const endpoint of endpoints) {
         const ctx = createExecutionContext();
@@ -276,15 +251,6 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
 
         expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
       }
-    });
-
-    it("should include deprecation headers on releases service", async () => {
-      const ctx = createExecutionContext();
-      const response = await app.request("/releases/v1", {}, env, ctx);
-      await waitOnExecutionContext(ctx);
-
-      expect(response.headers.get("Deprecation")).toBe("true");
-      expect(response.headers.get("Sunset")).toBeTruthy();
     });
 
     it("should include ETag headers on cacheable responses", async () => {
