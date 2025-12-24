@@ -6,16 +6,13 @@ Everything is built on [Hono](https://hono.dev), making it lightweight and fast.
 
 ## What it does
 
-The worker exposes three main services:
+The worker exposes two main services:
 
 - **Versions Service** (`/versions/v1`)
   The source of truth for FOSSBilling updates. It fetches release data from GitHub, caches it for performance, and helps instances decide if they need to update.
 
 - **Central Alerts** (`/central-alerts/v1`)
   Allows the project to push critical notifications to all FOSSBilling installations—useful for security hotfixes or major announcements.
-
-- **Releases Service** (`/releases/v1`)
-  _Legacy._ This is kept around to support older FOSSBilling versions that haven't updated to the new update system yet. It sends deprecation headers and will eventually be removed.
 
 ## Architecture
 

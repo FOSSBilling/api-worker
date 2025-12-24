@@ -43,16 +43,6 @@ export interface UpdateResponse {
   message: string | null;
 }
 
-export interface ReleasesResponse {
-  result: {
-    versions: ReleaseVersion[];
-  };
-  error: {
-    code: number;
-    message: string;
-  } | null;
-}
-
 // Version and Release Types
 export interface VersionInfo {
   version: string;
@@ -63,11 +53,6 @@ export interface VersionInfo {
   is_prerelease: boolean;
   github_release_id: number;
   changelog: string;
-}
-
-export interface ReleaseVersion {
-  version: string;
-  support: "supported" | "unsupported" | "latest" | "outdated" | "insecure";
 }
 
 // GitHub Types

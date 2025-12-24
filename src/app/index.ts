@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { contextStorage } from "hono/context-storage";
 import { HTTPException } from "hono/http-exception";
 import centralAlertsV1 from "../services/central-alerts/v1";
-import releasesV1 from "../services/releases/v1";
 import versionsV1 from "../services/versions/v1";
 import { platformMiddleware } from "../lib/middleware";
 import { createCloudflareBindings } from "../lib/adapters/cloudflare";
@@ -17,7 +16,6 @@ app.use("*", async (c, next) => {
   return middleware(c, next);
 });
 
-app.route("/releases/v1", releasesV1);
 app.route("/central-alerts/v1", centralAlertsV1);
 app.route("/versions/v1", versionsV1);
 
