@@ -148,7 +148,7 @@ GET /versions/v1/update
 Authorization: Bearer YOUR_UPDATE_TOKEN
 ```
 
-The update token must be stored in the `AUTH_KV` namespace under the key `update_token`.
+The update token must be stored in the `AUTH_KV` namespace under the key `UPDATE_TOKEN`.
 
 **Response:**
 

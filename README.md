@@ -37,8 +37,6 @@ We've structured the app to separate the core logic from the specific runtime en
 ### Central Alerts (`/central-alerts/v1`)
 
 - `GET /central-alerts/v1/list` - Public endpoint for fetching active alerts.
-- `GET /central-alerts/v1/version/:version` - Fetch alerts targeted at a specific FOSSBilling version.
-- **Admin Endpoints**: `POST`, `PUT`, `DELETE` exist but require authentication (controlled by the admin interface).
 
 ## Configuration
 
@@ -50,12 +48,11 @@ We use [Cloudflare D1](https://developers.cloudflare.com/d1/) and [KV](https://d
 
 - **D1 Database** (`DB_CENTRAL_ALERTS`): Stores the alert messages.
 - **KV Namespace** (`CACHE_KV`): Caches GitHub API responses so we don't hit rate limits.
-- **KV Namespace** (`AUTH_KV`): Stores the `update_token` for secured endpoints.
+- **KV Namespace** (`AUTH_KV`): Stores the `UPDATE_TOKEN` value for `/versions/v1/update`.
 
 ### Environment Variables
 
 - `GITHUB_TOKEN`: A GitHub Personal Access Token (classic) with public repo read access.
-- `UPDATE_TOKEN`: A secret token you define to secure release cache updates.
 
 ## Development
 
@@ -71,7 +68,6 @@ npm install
 
    ```env
    GITHUB_TOKEN="your-token"
-   UPDATE_TOKEN="dev-secret"
    ```
 
 2. Initialize the local D1 database:
@@ -80,7 +76,13 @@ npm install
    npm run init:db
    ```
 
-3. Spin up the dev server:
+3. (Optional) Store an update token in KV for `/versions/v1/update`:
+
+   ```bash
+   npx wrangler kv:key put --binding AUTH_KV UPDATE_TOKEN "dev-secret" --local
+   ```
+
+4. Spin up the dev server:
    ```bash
    npm run dev
    ```
