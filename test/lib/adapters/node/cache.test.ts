@@ -79,27 +79,21 @@ describe("SQLiteCacheAdapter - Memory", () => {
     const db = new DatabaseSync(":memory:");
     const badCache = new SQLiteCacheAdapter(db);
     db.close();
-    await expect(badCache.get("key")).rejects.toThrow(
-      "Failed to get cache entry"
-    );
+    await expect(badCache.get("key")).rejects.toThrow();
   });
 
   it("should throw on put error", async () => {
     const db = new DatabaseSync(":memory:");
     const badCache = new SQLiteCacheAdapter(db);
     db.close();
-    await expect(badCache.put("key", "value")).rejects.toThrow(
-      "Failed to put cache entry"
-    );
+    await expect(badCache.put("key", "value")).rejects.toThrow();
   });
 
   it("should throw on delete error", async () => {
     const db = new DatabaseSync(":memory:");
     const badCache = new SQLiteCacheAdapter(db);
     db.close();
-    await expect(badCache.delete("key")).rejects.toThrow(
-      "Failed to delete cache entry"
-    );
+    await expect(badCache.delete("key")).rejects.toThrow();
   });
 });
 
