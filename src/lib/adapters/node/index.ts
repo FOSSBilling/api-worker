@@ -2,17 +2,6 @@ import { IPlatformBindings } from "../../interfaces";
 import { createMemoryCache, createFileCache } from "./cache";
 import { NodeEnvironmentAdapter } from "./environment";
 
-/**
- * Creates platform bindings for the Node.js environment.
- *
- * @param cacheDbPath Optional base file path (without extension) for
- *   persistent cache databases. When provided, two file-backed caches
- *   are created using `${cacheDbPath}.kv` for general caching and
- *   `${cacheDbPath}.auth` for auth-related caching. When omitted or
- *   `undefined`, in-memory caches are used instead.
- * @returns Platform bindings configured with either file-backed or
- *   in-memory cache adapters for CACHE_KV and AUTH_KV.
- */
 export function createNodeBindings(cacheDbPath?: string): IPlatformBindings {
   const cacheKv = cacheDbPath
     ? createFileCache(`${normalizePath(cacheDbPath)}.kv`)
@@ -31,18 +20,9 @@ export function createNodeBindings(cacheDbPath?: string): IPlatformBindings {
   };
 }
 
-/**
- * Normalizes a file path by removing trailing dots, slashes, and specific
- * SQLite-related extensions (".sqlite", ".db", ".sqlite3") to prevent
- * malformed paths when appending suffixes.
- */
 function normalizePath(path: string): string {
-  // Remove trailing slashes
   let normalized = path.replace(/\/+$/, "");
-  // Then remove trailing dots
   normalized = normalized.replace(/\.+$/, "");
-
-  // Remove common extensions if present
   normalized = normalized.replace(/\.(?:sqlite|db|sqlite3)$/i, "");
 
   return normalized;
