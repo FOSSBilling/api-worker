@@ -330,6 +330,114 @@ describe("Versions API v1", () => {
       expect(data.result).toHaveProperty("version", "0.5.0");
       expect(data.result.minimum_php_version).toBe("");
     });
+
+    describe("Empty releases cache retry logic", () => {
+      it("should retry with updateCache when releases is empty", async () => {
+        let callCount = 0;
+        // First call returns empty, second call returns actual data
+        (
+          vi.mocked(ghRequest) as unknown as MockGitHubRequest
+        ).mockImplementation(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return { data: [] };
+          }
+          return { data: mockGitHubReleases };
+        });
+
+        const ctx = createExecutionContext();
+        const response = await app.request("/versions/v1/0.6.0", {}, env, ctx);
+        await waitOnExecutionContext(ctx);
+
+        expect(response.status).toBe(200);
+        const data: ApiResponse<VersionInfo | null> = await response.json();
+
+        if (!data.result) {
+          throw new Error("Expected version info for 0.6.0");
+        }
+        expect(data.result.version).toBe("0.6.0");
+
+        // Should be called 6 times:
+        // - First getReleases call: 1 call for releases (returns empty, no composer.json calls)
+        // - Second getReleases call: 1 call for releases + 4 calls for composer.json (one per release)
+        expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(6);
+      });
+
+      it("should return 404 when retry also fails", async () => {
+        (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+          new Error("GitHub API Error")
+        );
+        (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+          new Error("GitHub API Error")
+        );
+
+        const ctx = createExecutionContext();
+        const response = await app.request("/versions/v1/0.6.0", {}, env, ctx);
+        await waitOnExecutionContext(ctx);
+
+        expect(response.status).toBe(404);
+        const data: ApiResponse<VersionInfo | null> = await response.json();
+
+        expect(data.result).toBeNull();
+        expect(data.error_code).toBe(404);
+        expect(data.message).toContain("No releases are currently available");
+
+        // Should have been called twice (initial attempt + retry)
+        expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(2);
+      });
+
+      it("should return 404 for 'latest' when retry fails", async () => {
+        (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+          new Error("GitHub API Error")
+        );
+        (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+          new Error("GitHub API Error")
+        );
+
+        const ctx = createExecutionContext();
+        const response = await app.request("/versions/v1/latest", {}, env, ctx);
+        await waitOnExecutionContext(ctx);
+
+        expect(response.status).toBe(404);
+        const data: ApiResponse<VersionInfo | null> = await response.json();
+
+        expect(data.result).toBeNull();
+        expect(data.error_code).toBe(404);
+        expect(data.message).toContain("No releases are currently available");
+
+        expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(2);
+      });
+
+      it("should succeed after retry with 'latest' alias", async () => {
+        let callCount = 0;
+        (
+          vi.mocked(ghRequest) as unknown as MockGitHubRequest
+        ).mockImplementation(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return { data: [] };
+          }
+          return { data: mockGitHubReleases };
+        });
+
+        const ctx = createExecutionContext();
+        const response = await app.request("/versions/v1/latest", {}, env, ctx);
+        await waitOnExecutionContext(ctx);
+
+        expect(response.status).toBe(200);
+        const data: ApiResponse<VersionInfo | null> = await response.json();
+
+        if (!data.result) {
+          throw new Error("Expected latest release");
+        }
+        expect(data.result.version).toBe("0.6.0");
+
+        // Should be called 6 times:
+        // - First getReleases call: 1 call for releases (returns empty, no composer.json calls)
+        // - Second getReleases call: 1 call for releases + 4 calls for composer.json (one per release)
+        expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(6);
+      });
+    });
   });
 
   describe("Caching", () => {

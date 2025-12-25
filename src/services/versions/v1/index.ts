@@ -159,27 +159,27 @@ versionsV1.get(
   async (c) => {
     const version = c.req.param("version");
     const platform = getPlatform(c);
-    const releases = await getReleases(
+    let releases = await getReleases(
       platform.getCache("CACHE_KV"),
       platform.getEnv("GITHUB_TOKEN") || "",
       false
     );
 
     if (Object.keys(releases).length === 0) {
+      releases = await getReleases(
+        platform.getCache("CACHE_KV"),
+        platform.getEnv("GITHUB_TOKEN") || "",
+        true
+      );
+    }
+
+    if (Object.keys(releases).length === 0) {
+      c.status(404);
       return c.json({
-        result: {
-          version: "0.6.0",
-          released_on: "2023-04-01T00:00:00Z",
-          minimum_php_version: "8.2",
-          download_url:
-            "https://github.com/FOSSBilling/FOSSBilling/releases/download/0.6.0/FOSSBilling.zip",
-          size_bytes: 1030000,
-          is_prerelease: false,
-          github_release_id: 1004,
-          changelog: "## 0.6.0\\n- New features"
-        },
-        error_code: 0,
-        message: null
+        result: null,
+        error_code: 404,
+        message:
+          "No releases are currently available. Please try again later or check the GitHub releases page."
       });
     }
 
