@@ -16,6 +16,7 @@
     "mode": "smart"
   },
   "preview_urls": true,
+  "keep_vars": true,
 
   /**
    * Bindings
