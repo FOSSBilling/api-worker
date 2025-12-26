@@ -37,7 +37,6 @@ describe("Versions API v1", () => {
     restoreConsole = suppressConsole();
     await env.CACHE_KV.delete("gh-fossbilling-releases");
 
-    // Set up UPDATE_TOKEN in AUTH_KV storage for tests
     const testUpdateToken = "test-update-token-12345";
     await env.AUTH_KV.put("UPDATE_TOKEN", testUpdateToken);
 
@@ -88,17 +87,14 @@ describe("Versions API v1", () => {
     });
 
     it("should return cached data on subsequent requests", async () => {
-      // First request to populate cache
       const ctx1 = createExecutionContext();
       await app.request("/versions/v1", {}, env, ctx1);
       await waitOnExecutionContext(ctx1);
 
-      // Mock the GitHub API to throw an error to ensure we're using cache
       (
         vi.mocked(ghRequest) as unknown as MockGitHubRequest
       ).mockRejectedValueOnce(new Error("API Error"));
 
-      // Second request should use cache
       const ctx2 = createExecutionContext();
       const response = await app.request("/versions/v1", {}, env, ctx2);
       await waitOnExecutionContext(ctx2);
@@ -296,7 +292,6 @@ describe("Versions API v1", () => {
       const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      // When API fails and no cache is available, return 503
       expect(response.status).toBe(503);
       const data: VersionsResponse = await response.json();
       expect(data.error_code).toBe(503);
@@ -304,7 +299,6 @@ describe("Versions API v1", () => {
     });
 
     it("should handle missing composer.json", async () => {
-      // Mock GitHub to return error for composer.json
       (vi.mocked(ghRequest) as unknown as MockGitHubRequest).mockImplementation(
         async (route: string) => {
           if (route === "GET /repos/{owner}/{repo}/releases") {
@@ -334,7 +328,6 @@ describe("Versions API v1", () => {
     describe("Empty releases cache retry logic", () => {
       it("should retry with updateCache when releases is empty", async () => {
         let callCount = 0;
-        // First call returns empty, second call returns actual data
         (
           vi.mocked(ghRequest) as unknown as MockGitHubRequest
         ).mockImplementation(async () => {
@@ -357,9 +350,6 @@ describe("Versions API v1", () => {
         }
         expect(data.result.version).toBe("0.6.0");
 
-        // Should be called 6 times:
-        // - First getReleases call: 1 call for releases (returns empty, no composer.json calls)
-        // - Second getReleases call: 1 call for releases + 4 calls for composer.json (one per release)
         expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(6);
       });
 
@@ -375,7 +365,6 @@ describe("Versions API v1", () => {
         const response = await app.request("/versions/v1/0.6.0", {}, env, ctx);
         await waitOnExecutionContext(ctx);
 
-        // When both cache and API fetch fail, return 503 (service unavailable)
         expect(response.status).toBe(503);
         const data: ApiResponse<VersionInfo | null> = await response.json();
 
@@ -383,7 +372,6 @@ describe("Versions API v1", () => {
         expect(data.error_code).toBe(503);
         expect(data.message).toContain("Unable to fetch releases");
 
-        // Should have been called twice (initial attempt + retry)
         expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(2);
       });
 
@@ -399,7 +387,6 @@ describe("Versions API v1", () => {
         const response = await app.request("/versions/v1/latest", {}, env, ctx);
         await waitOnExecutionContext(ctx);
 
-        // When both cache and API fetch fail, return 503 (service unavailable)
         expect(response.status).toBe(503);
         const data: ApiResponse<VersionInfo | null> = await response.json();
 
@@ -434,9 +421,6 @@ describe("Versions API v1", () => {
         }
         expect(data.result.version).toBe("0.6.0");
 
-        // Should be called 6 times:
-        // - First getReleases call: 1 call for releases (returns empty, no composer.json calls)
-        // - Second getReleases call: 1 call for releases + 4 calls for composer.json (one per release)
         expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(6);
       });
     });

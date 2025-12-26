@@ -56,10 +56,7 @@ export class ValidationError extends GitHubError {
   }
 }
 
-export function classifyGitHubError(
-  error: unknown,
-  url?: string
-): GitHubError | null {
+export function classifyGitHubError(error: unknown, url?: string): GitHubError {
   if (error instanceof GitHubError) {
     return error;
   }

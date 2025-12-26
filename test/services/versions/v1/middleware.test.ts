@@ -206,7 +206,6 @@ describe("Versions API v1 - Middleware", () => {
       const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      // When API fails, we return 503 error without Vary header
       expect(response.status).toBe(503);
       expect(response.headers.get("Vary")).toBeNull();
     });
@@ -291,9 +290,7 @@ describe("Versions API v1 - Middleware", () => {
       const response = await app.request("/versions/v1/", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      // First trailing slash middleware (301 redirect)
       expect(response.status).toBe(301);
-      // CORS should still be applied
       expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
     });
 
@@ -311,8 +308,6 @@ describe("Versions API v1 - Middleware", () => {
       );
       await waitOnExecutionContext(ctx);
 
-      // Update endpoint may or may not have cache control headers
-      // Just verify it responds successfully
       expect(response.status).toBe(200);
     });
 

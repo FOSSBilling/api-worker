@@ -168,31 +168,6 @@ describe("Versions API v1 - Error Handling", () => {
       expect(data.message).toContain("Failed to fetch releases");
     });
 
-    it("should handle releases without FOSSBilling.zip asset", async () => {
-      (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
-        new Error("GitHub API Error")
-      );
-
-      const ctx = createExecutionContext();
-      const response = await app.request(
-        "/versions/v1/update",
-        {
-          headers: {
-            Authorization: "Bearer test-update-token-12345"
-          }
-        },
-        env,
-        ctx
-      );
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(500);
-      const data = (await response.json()) as ApiResponse<string>;
-      expect(data.result).toBe(null);
-      expect(data.error_code).toBe(500);
-      expect(data.message).toContain("Failed to fetch releases");
-    });
-
     it("should expose error details in /update endpoint on failure", async () => {
       const errorResponse = {
         status: 401,
@@ -241,7 +216,7 @@ describe("Versions API v1 - Error Handling", () => {
       expect(data.details).toBeDefined();
     });
 
-    it("should return stale data when GitHub API fails but cache available", async () => {
+    it("should serve cached data when available", async () => {
       await env.CACHE_KV.put(
         "gh-fossbilling-releases",
         JSON.stringify({
@@ -256,9 +231,6 @@ describe("Versions API v1 - Error Handling", () => {
             changelog: "Release notes"
           }
         })
-      );
-      (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
-        new Error("GitHub API Error")
       );
 
       const ctx = createExecutionContext();
@@ -366,7 +338,6 @@ describe("Versions API v1 - Error Handling", () => {
       const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      // Empty cache is treated as falsy, fetches fresh data
       expect(response.status).toBe(200);
     });
 
@@ -377,7 +348,6 @@ describe("Versions API v1 - Error Handling", () => {
       const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      // Parsing "null" string should work, returns 200
       expect(response.status).toBe(200);
     });
 
@@ -445,10 +415,8 @@ describe("Versions API v1 - Error Handling", () => {
         {
           id: 1,
           tag_name: "1.0.0",
-          // Missing name field
           published_at: "2023-01-01T00:00:00Z",
           prerelease: false,
-          // Missing body field
           assets: [
             {
               name: "FOSSBilling.zip",
@@ -489,7 +457,6 @@ describe("Versions API v1 - Error Handling", () => {
           id: 1,
           tag_name: "1.0.0",
           name: "1.0.0",
-          // Missing published_at
           prerelease: false,
           body: "Release",
           assets: [

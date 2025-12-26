@@ -71,7 +71,7 @@ versionsV1.get(
       false
     );
 
-    const releases = result.releases || {};
+    const releases = result.releases;
 
     if (Object.keys(releases).length === 0 && result.error) {
       return c.json(
@@ -172,7 +172,7 @@ versionsV1.get(
       false
     );
 
-    const releases = result.releases || {};
+    const releases = result.releases;
 
     if (Object.keys(releases).length === 0 && result.error) {
       return c.json(
@@ -243,7 +243,7 @@ versionsV1.get(
       false
     );
 
-    let releases = result.releases || {};
+    let releases = result.releases;
 
     if (Object.keys(releases).length === 0) {
       result = await getReleases(
@@ -251,7 +251,7 @@ versionsV1.get(
         platform.getEnv("GITHUB_TOKEN") || "",
         true
       );
-      releases = result.releases || {};
+      releases = result.releases;
     }
 
     if (Object.keys(releases).length === 0 && result.error) {
@@ -360,15 +360,7 @@ export async function getReleases(
       per_page: 100
     });
 
-    logInfo("versions", "Successfully fetched releases from GitHub API", {
-      url: "https://api.github.com/repos/FOSSBilling/FOSSBilling/releases",
-      releaseCount: Array.isArray(result.data) ? result.data.length : 0
-    });
-
-    let releases: Releases = {};
-    const errors: GitHubError[] = [];
-
-    if (result.data && !Array.isArray(result.data)) {
+    if (!Array.isArray(result.data)) {
       logWarn("versions", "Unexpected GitHub releases response format", {
         responseType: typeof result.data
       });
@@ -378,77 +370,60 @@ export async function getReleases(
       };
     }
 
-    if (Array.isArray(result.data)) {
-      const releasePromises = result.data.map(
-        async (release): Promise<[string, ReleaseDetails] | null> => {
-          try {
-            const tag =
-              typeof release?.tag_name === "string" ? release.tag_name : null;
-            if (!tag) {
-              return null;
-            }
+    logInfo("versions", "Successfully fetched releases from GitHub API", {
+      url: "https://api.github.com/repos/FOSSBilling/FOSSBilling/releases",
+      releaseCount: result.data.length
+    });
 
-            if (!semverValid(tag)) {
-              logWarn("versions", "Skipping release with invalid semver tag", {
-                tag,
-                releaseId: release?.id
-              });
-              return null;
-            }
+    let releases: Releases = {};
+    const errors: GitHubError[] = [];
 
-            const assets = Array.isArray(release?.assets) ? release.assets : [];
-            const zipAsset = assets.find(
-              (asset) => asset.name === "FOSSBilling.zip"
-            );
-            if (!zipAsset) {
-              return null;
-            }
-
-            const phpResult = await getReleaseMinPhpVersion(githubToken, tag);
-
-            if (phpResult.error) {
-              errors.push(phpResult.error);
-            }
-
-            const releaseDetails: ReleaseDetails = {
-              version:
-                typeof release?.name === "string" && release.name
-                  ? release.name
-                  : tag,
-              released_on:
-                typeof release?.published_at === "string"
-                  ? release.published_at
-                  : "",
-              minimum_php_version: phpResult.version,
-              download_url: zipAsset.browser_download_url,
-              size_bytes: zipAsset.size,
-              is_prerelease: Boolean(release?.prerelease),
-              github_release_id:
-                typeof release?.id === "number" ? release.id : 0,
-              changelog: typeof release?.body === "string" ? release.body : ""
-            };
-            return [tag, releaseDetails];
-          } catch (releaseError) {
-            logWarn("versions", "Skipping release due to processing error", {
-              error:
-                releaseError instanceof Error
-                  ? releaseError.message
-                  : String(releaseError)
-            });
-            return null;
-          }
+    const releasePromises = result.data.map(
+      async (release): Promise<[string, ReleaseDetails] | null> => {
+        const tag = release.tag_name;
+        if (!semverValid(tag)) {
+          logWarn("versions", "Skipping release with invalid semver tag", {
+            tag,
+            releaseId: release.id
+          });
+          return null;
         }
-      );
 
-      const releaseEntries = (await Promise.all(releasePromises)).filter(
-        (entry): entry is [string, ReleaseDetails] => entry !== null
-      );
+        const zipAsset = release.assets.find(
+          (asset) => asset.name === "FOSSBilling.zip"
+        );
+        if (!zipAsset) {
+          return null;
+        }
 
-      const sortedReleases = Object.fromEntries(
-        releaseEntries.sort((a, b) => semverCompare(a[0], b[0]))
-      );
-      releases = sortedReleases;
-    }
+        const phpResult = await getReleaseMinPhpVersion(githubToken, tag);
+
+        if (phpResult.error) {
+          errors.push(phpResult.error);
+        }
+
+        const releaseDetails: ReleaseDetails = {
+          version: release.name || tag,
+          released_on: release.published_at ?? "",
+          minimum_php_version: phpResult.version,
+          download_url: zipAsset.browser_download_url,
+          size_bytes: zipAsset.size,
+          is_prerelease: Boolean(release.prerelease),
+          github_release_id: release.id ?? 0,
+          changelog: release.body || ""
+        };
+        return [tag, releaseDetails];
+      }
+    );
+
+    const releaseEntries = (await Promise.all(releasePromises)).filter(
+      (entry): entry is [string, ReleaseDetails] => entry !== null
+    );
+
+    const sortedReleases = Object.fromEntries(
+      releaseEntries.sort((a, b) => semverCompare(a[0], b[0]))
+    );
+    releases = sortedReleases;
 
     if (Object.keys(releases).length > 0) {
       await cache.put("gh-fossbilling-releases", JSON.stringify(releases), {
@@ -475,16 +450,6 @@ export async function getReleases(
       error,
       "https://api.github.com/repos/FOSSBilling/FOSSBilling/releases"
     );
-
-    if (!githubError) {
-      logError("versions", "Unknown error fetching releases", {
-        error: error instanceof Error ? error.message : String(error)
-      });
-      return {
-        releases: {},
-        source: "fresh"
-      };
-    }
 
     if (githubError instanceof ValidationError) {
       logWarn("versions", "Invalid response received from GitHub API", {
@@ -559,13 +524,6 @@ export async function getReleaseMinPhpVersion(
   githubToken: string,
   version: string
 ): Promise<GetReleaseMinPhpVersionResult> {
-  if (!semverValid(version)) {
-    return {
-      version: "",
-      error: new ValidationError("Invalid release tag", { version })
-    };
-  }
-
   const composerPath = semverGte(version, "0.5.0")
     ? "composer.json"
     : "src/composer.json";
@@ -585,14 +543,10 @@ export async function getReleaseMinPhpVersion(
       }
     );
 
-    if (
-      result.data &&
-      typeof result.data === "object" &&
-      "content" in result.data &&
-      result.data.content
-    ) {
+    const contentValue = result.data?.content;
+    if (typeof contentValue === "string" && contentValue) {
       const content = new TextDecoder("utf-8").decode(
-        Uint8Array.from(atob(result.data.content), (c) => c.charCodeAt(0))
+        Uint8Array.from(atob(contentValue), (c) => c.charCodeAt(0))
       );
       const composerJson = JSON.parse(content);
       if (composerJson.require && composerJson.require.php) {
@@ -627,13 +581,13 @@ export async function getReleaseMinPhpVersion(
       logInfo("versions", "Unable to fetch composer.json", {
         version,
         url,
-        message: githubError?.message || String(error)
+        message: githubError.message
       });
     }
 
     return {
       version: "",
-      error: githubError || undefined
+      error: githubError
     };
   }
 
