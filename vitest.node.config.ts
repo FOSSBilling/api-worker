@@ -10,10 +10,7 @@ export default defineConfig({
     coverage: {
       provider: "istanbul",
       reporter: ["text", "json", "html"],
-      include: [
-        "src/lib/adapters/node/**",
-        "test/lib/adapters/node/**/*.test.ts"
-      ]
+      include: ["src/lib/adapters/node/**"]
     }
   }
 });
