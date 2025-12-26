@@ -53,7 +53,7 @@ GET /versions/v1/0.6.0
 GET /versions/v1/latest
 ```
 
-**Response:** Same format as the `GET /` response with `stale` field.
+**Response:** Uses the same envelope as the `GET /` response (`result`, `error_code`, `message`, `stale`), but `result` contains a single version object (the same schema as a value from the `GET /` `result` map).
 
 ### GET `/build_changelog/:current`
 
