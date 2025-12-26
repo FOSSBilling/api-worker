@@ -51,8 +51,13 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
       );
       await waitOnExecutionContext(ctx2);
 
+      const ctx3 = createExecutionContext();
+      const statsResponse = await app.request("/stats/v1/data", {}, env, ctx3);
+      await waitOnExecutionContext(ctx3);
+
       expect(versionsResponse.status).toBe(200);
       expect(alertsResponse.status).toBe(200);
+      expect(statsResponse.status).toBe(200);
 
       const versionsData = (await versionsResponse.json()) as VersionsResponse;
       const alertsData = (await alertsResponse.json()) as CentralAlertsResponse;
@@ -189,7 +194,9 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
       const endpoints = [
         "/versions/v1",
         "/versions/v1/latest",
-        "/central-alerts/v1/list"
+        "/central-alerts/v1/list",
+        "/stats/v1/data",
+        "/stats/v1"
       ];
 
       for (const endpoint of endpoints) {
@@ -242,7 +249,7 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
 
   describe("Headers and Middleware", () => {
     it("should include CORS headers on all responses", async () => {
-      const endpoints = ["/versions/v1", "/central-alerts/v1/list"];
+      const endpoints = ["/versions/v1", "/central-alerts/v1/list", "/stats/v1/data", "/stats/v1"];
 
       for (const endpoint of endpoints) {
         const ctx = createExecutionContext();

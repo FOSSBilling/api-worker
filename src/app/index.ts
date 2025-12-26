@@ -3,6 +3,7 @@ import { contextStorage } from "hono/context-storage";
 import { HTTPException } from "hono/http-exception";
 import centralAlertsV1 from "../services/central-alerts/v1";
 import versionsV1 from "../services/versions/v1";
+import statsV1 from "../services/stats/v1";
 import { platformMiddleware } from "../lib/middleware";
 import { createCloudflareBindings } from "../lib/adapters/cloudflare";
 
@@ -18,6 +19,7 @@ app.use("*", async (c, next) => {
 
 app.route("/central-alerts/v1", centralAlertsV1);
 app.route("/versions/v1", versionsV1);
+app.route("/stats/v1", statsV1);
 
 app.onError((err, c) => {
   if (err instanceof HTTPException) {
