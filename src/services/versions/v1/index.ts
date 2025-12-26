@@ -230,6 +230,46 @@ versionsV1.get(
 );
 
 versionsV1.get(
+  "/count",
+  cache({ cacheName: "versions-api-v1", cacheControl: "max-age: 86400" }),
+  etag(),
+  prettyJSON(),
+  async (c) => {
+    const platform = getPlatform(c);
+    const result = await getReleases(
+      platform.getCache("CACHE_KV"),
+      platform.getEnv("GITHUB_TOKEN") || "",
+      false
+    );
+
+    const releases = result.releases;
+    const releaseCount = Object.keys(releases).length;
+
+    if (releaseCount === 0 && result.error) {
+      return c.json(
+        {
+          result: null,
+          error_code: 503,
+          message: "Unable to fetch releases and no cached data available",
+          details: {
+            http_status: result.error.httpStatus,
+            error_code: result.error.errorCode
+          }
+        },
+        503
+      );
+    }
+
+    return c.json({
+      result: releaseCount,
+      error_code: 0,
+      message: null,
+      stale: result.source === "stale"
+    });
+  }
+);
+
+versionsV1.get(
   "/:version",
   cache({ cacheName: "versions-api-v1", cacheControl: "max-age: 86400" }),
   etag(),
@@ -313,6 +353,10 @@ interface GetReleasesResult {
   releases: Releases;
   source: "cache" | "fresh" | "stale";
   error?: GitHubError;
+}
+
+export function resetUpdateTokenCache() {
+  updateTokenCache = null;
 }
 
 export async function getReleases(

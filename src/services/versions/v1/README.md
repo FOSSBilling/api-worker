@@ -76,6 +76,27 @@ GET /versions/v1/build_changelog/0.5.0
 }
 ```
 
+### GET `/count`
+
+Returns the total count of available releases.
+
+**Request:**
+
+```http
+GET /versions/v1/count
+```
+
+**Response:**
+
+```json
+{
+  "result": 51,
+  "error_code": 0,
+  "message": null,
+  "stale": false
+}
+```
+
 ### GET `/update`
 
 Refreshes the cached release data. Requires bearer auth.

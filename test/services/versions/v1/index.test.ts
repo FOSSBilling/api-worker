@@ -29,6 +29,7 @@ vi.mock("@octokit/request", () => ({
 }));
 
 import { request as ghRequest } from "@octokit/request";
+import { resetUpdateTokenCache } from "../../../../src/services/versions/v1/index";
 
 let restoreConsole: (() => void) | null = null;
 let originalKVPut: typeof env.CACHE_KV.put | null = null;
@@ -37,6 +38,7 @@ describe("Versions API v1", () => {
   beforeEach(async () => {
     restoreConsole = suppressConsole();
     await env.CACHE_KV.delete("gh-fossbilling-releases");
+    resetUpdateTokenCache();
 
     const testUpdateToken = "test-update-token-12345";
     await env.AUTH_KV.put("UPDATE_TOKEN", testUpdateToken);
@@ -250,6 +252,38 @@ describe("Versions API v1", () => {
       expect(data).toHaveProperty("result", null);
       expect(data).toHaveProperty("error_code", 400);
       expect(data.message).toContain("not a valid semantic version");
+    });
+  });
+
+  describe("GET /count", () => {
+    it("should return the total count of releases", async () => {
+      const ctx = createExecutionContext();
+      const response = await app.request("/versions/v1/count", {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      const data: ApiResponse<number | null> = await response.json();
+
+      expect(data).toHaveProperty("result");
+      expect(typeof data.result).toBe("number");
+      expect(data.result).toBeGreaterThan(0);
+      expect(data).toHaveProperty("error_code", 0);
+      expect(data).toHaveProperty("message", null);
+    });
+
+    it("should serve cached count when available", async () => {
+      const ctx1 = createExecutionContext();
+      await app.request("/versions/v1", {}, env, ctx1);
+      await waitOnExecutionContext(ctx1);
+
+      // Make a second request - should use cache
+      const ctx2 = createExecutionContext();
+      const response = await app.request("/versions/v1/count", {}, env, ctx2);
+      await waitOnExecutionContext(ctx2);
+
+      expect(response.status).toBe(200);
+      const data: ApiResponse<number | null> = await response.json();
+      expect(data.result).toBeGreaterThan(0);
     });
   });
 
