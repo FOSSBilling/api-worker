@@ -40,6 +40,18 @@ Retrieve all alerts in the system.
 }
 ```
 
+**Error Response:**
+
+```json
+{
+  "result": null,
+  "error": {
+    "message": "Database connection failed",
+    "code": "DATABASE_ERROR"
+  }
+}
+```
+
 ## Alert Types
 
 The `type` field accepts: `success`, `info`, `warning`, `danger`

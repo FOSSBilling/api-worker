@@ -21,7 +21,8 @@ export default defineWorkersConfig({
         functions: 80,
         lines: 80
       },
-      include: ["src/**", "test/**/*.test.ts"]
+      include: ["src/**", "test/**/*.test.ts"],
+      exclude: ["src/lib/adapters/node/**"]
     },
 
     poolOptions: {

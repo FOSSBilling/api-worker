@@ -137,7 +137,7 @@ describe("SQLiteCacheAdapter - File", () => {
       const result = await cache2.get("key1");
       expect(result).toBe("value1");
     } finally {
-      await cache2.close();
+      cache2.close();
     }
   });
 });

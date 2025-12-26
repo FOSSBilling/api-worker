@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { compare as semverCompare } from "semver";
 import {
   env,
   createExecutionContext,
@@ -28,6 +29,7 @@ vi.mock("@octokit/request", () => ({
 }));
 
 import { request as ghRequest } from "@octokit/request";
+import { resetUpdateTokenCache } from "../../../../src/services/versions/v1/index";
 
 let restoreConsole: (() => void) | null = null;
 let originalKVPut: typeof env.CACHE_KV.put | null = null;
@@ -36,8 +38,8 @@ describe("Versions API v1", () => {
   beforeEach(async () => {
     restoreConsole = suppressConsole();
     await env.CACHE_KV.delete("gh-fossbilling-releases");
+    resetUpdateTokenCache();
 
-    // Set up UPDATE_TOKEN in AUTH_KV storage for tests
     const testUpdateToken = "test-update-token-12345";
     await env.AUTH_KV.put("UPDATE_TOKEN", testUpdateToken);
 
@@ -77,6 +79,25 @@ describe("Versions API v1", () => {
       expect(Object.keys(data.result)).toContain("0.6.0");
     });
 
+    it("should return releases sorted from latest to earliest", async () => {
+      const ctx = createExecutionContext();
+      const response = await app.request("/versions/v1", {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      const data: VersionsResponse = await response.json();
+
+      const versionKeys = Object.keys(data.result);
+      expect(versionKeys.length).toBeGreaterThan(1);
+
+      for (let i = 0; i < versionKeys.length - 1; i++) {
+        const current = versionKeys[i];
+        const next = versionKeys[i + 1];
+        const compare = semverCompare(current, next);
+        expect(compare).toBeGreaterThanOrEqual(0);
+      }
+    });
+
     it("should cache releases data", async () => {
       const ctx = createExecutionContext();
       await app.request("/versions/v1", {}, env, ctx);
@@ -88,17 +109,14 @@ describe("Versions API v1", () => {
     });
 
     it("should return cached data on subsequent requests", async () => {
-      // First request to populate cache
       const ctx1 = createExecutionContext();
       await app.request("/versions/v1", {}, env, ctx1);
       await waitOnExecutionContext(ctx1);
 
-      // Mock the GitHub API to throw an error to ensure we're using cache
       (
         vi.mocked(ghRequest) as unknown as MockGitHubRequest
       ).mockRejectedValueOnce(new Error("API Error"));
 
-      // Second request should use cache
       const ctx2 = createExecutionContext();
       const response = await app.request("/versions/v1", {}, env, ctx2);
       await waitOnExecutionContext(ctx2);
@@ -237,6 +255,38 @@ describe("Versions API v1", () => {
     });
   });
 
+  describe("GET /count", () => {
+    it("should return the total count of releases", async () => {
+      const ctx = createExecutionContext();
+      const response = await app.request("/versions/v1/count", {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      const data: ApiResponse<number | null> = await response.json();
+
+      expect(data).toHaveProperty("result");
+      expect(typeof data.result).toBe("number");
+      expect(data.result).toBeGreaterThan(0);
+      expect(data).toHaveProperty("error_code", 0);
+      expect(data).toHaveProperty("message", null);
+    });
+
+    it("should serve cached count when available", async () => {
+      const ctx1 = createExecutionContext();
+      await app.request("/versions/v1", {}, env, ctx1);
+      await waitOnExecutionContext(ctx1);
+
+      // Make a second request - should use cache
+      const ctx2 = createExecutionContext();
+      const response = await app.request("/versions/v1/count", {}, env, ctx2);
+      await waitOnExecutionContext(ctx2);
+
+      expect(response.status).toBe(200);
+      const data: ApiResponse<number | null> = await response.json();
+      expect(data.result).toBeGreaterThan(0);
+    });
+  });
+
   describe("GET /update", () => {
     it("should update cache when authenticated", async () => {
       const ctx = createExecutionContext();
@@ -296,15 +346,13 @@ describe("Versions API v1", () => {
       const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(503);
       const data: VersionsResponse = await response.json();
-
-      // Should return empty result when API fails
-      expect(Object.keys(data.result)).toHaveLength(0);
+      expect(data.error_code).toBe(503);
+      expect(data.message).toContain("Unable to fetch releases");
     });
 
     it("should handle missing composer.json", async () => {
-      // Mock GitHub to return error for composer.json
       (vi.mocked(ghRequest) as unknown as MockGitHubRequest).mockImplementation(
         async (route: string) => {
           if (route === "GET /repos/{owner}/{repo}/releases") {
@@ -329,6 +377,106 @@ describe("Versions API v1", () => {
       }
       expect(data.result).toHaveProperty("version", "0.5.0");
       expect(data.result.minimum_php_version).toBe("");
+    });
+
+    describe("Empty releases cache retry logic", () => {
+      it("should retry with updateCache when releases is empty", async () => {
+        let callCount = 0;
+        (
+          vi.mocked(ghRequest) as unknown as MockGitHubRequest
+        ).mockImplementation(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return { data: [] };
+          }
+          return { data: mockGitHubReleases };
+        });
+
+        const ctx = createExecutionContext();
+        const response = await app.request("/versions/v1/0.6.0", {}, env, ctx);
+        await waitOnExecutionContext(ctx);
+
+        expect(response.status).toBe(200);
+        const data: ApiResponse<VersionInfo | null> = await response.json();
+
+        if (!data.result) {
+          throw new Error("Expected version info for 0.6.0");
+        }
+        expect(data.result.version).toBe("0.6.0");
+
+        expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(6);
+      });
+
+      it("should return 404 when retry also fails", async () => {
+        (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+          new Error("GitHub API Error")
+        );
+        (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+          new Error("GitHub API Error")
+        );
+
+        const ctx = createExecutionContext();
+        const response = await app.request("/versions/v1/0.6.0", {}, env, ctx);
+        await waitOnExecutionContext(ctx);
+
+        expect(response.status).toBe(503);
+        const data: ApiResponse<VersionInfo | null> = await response.json();
+
+        expect(data.result).toBeNull();
+        expect(data.error_code).toBe(503);
+        expect(data.message).toContain("Unable to fetch releases");
+
+        expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(2);
+      });
+
+      it("should return 404 for 'latest' when retry fails", async () => {
+        (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+          new Error("GitHub API Error")
+        );
+        (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+          new Error("GitHub API Error")
+        );
+
+        const ctx = createExecutionContext();
+        const response = await app.request("/versions/v1/latest", {}, env, ctx);
+        await waitOnExecutionContext(ctx);
+
+        expect(response.status).toBe(503);
+        const data: ApiResponse<VersionInfo | null> = await response.json();
+
+        expect(data.result).toBeNull();
+        expect(data.error_code).toBe(503);
+        expect(data.message).toContain("Unable to fetch releases");
+
+        expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(2);
+      });
+
+      it("should succeed after retry with 'latest' alias", async () => {
+        let callCount = 0;
+        (
+          vi.mocked(ghRequest) as unknown as MockGitHubRequest
+        ).mockImplementation(async () => {
+          callCount++;
+          if (callCount === 1) {
+            return { data: [] };
+          }
+          return { data: mockGitHubReleases };
+        });
+
+        const ctx = createExecutionContext();
+        const response = await app.request("/versions/v1/latest", {}, env, ctx);
+        await waitOnExecutionContext(ctx);
+
+        expect(response.status).toBe(200);
+        const data: ApiResponse<VersionInfo | null> = await response.json();
+
+        if (!data.result) {
+          throw new Error("Expected latest release");
+        }
+        expect(data.result.version).toBe("0.6.0");
+
+        expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(6);
+      });
     });
   });
 

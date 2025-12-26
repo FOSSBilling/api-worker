@@ -58,7 +58,11 @@ class MockPreparedStatement implements IPreparedStatement {
     return this;
   }
 
-  async all<T = unknown>(): Promise<{ results?: T[]; success: boolean }> {
+  async all<T = unknown>(): Promise<{
+    results?: T[];
+    success: boolean;
+    error?: string;
+  }> {
     const fromMatch = this.query.match(/FROM\s+(\w+)/i);
     const tableName = fromMatch ? fromMatch[1] : "central_alerts";
     const results = this.data.get(tableName) || [];
