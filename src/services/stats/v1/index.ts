@@ -212,7 +212,7 @@ registerCachedRoute("/data", async (c) => {
   return c.json(buildSuccessResponse(result.stats, result.source));
 });
 
-statsV1.get("/", async (c) => {
+registerCachedRoute("/", async (c) => {
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
