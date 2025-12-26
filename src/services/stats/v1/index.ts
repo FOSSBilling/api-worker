@@ -266,30 +266,11 @@ statsV1.get("/", async (c) => {
             font-size: 18px;
             color: #e74c3c;
         }
-        .refresh-btn {
-            display: block;
-            margin: 20px auto;
-            padding: 10px 20px;
-            background: #3498db;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .refresh-btn:hover {
-            background: #2980b9;
-        }
-        .refresh-btn:disabled {
-            background: #95a5a6;
-            cursor: not-allowed;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>FOSSBilling Release Statistics</h1>
-        <button id="refreshBtn" class="refresh-btn" onclick="loadStats()">Refresh Data</button>
         <div id="loading" class="loading">Loading statistics...</div>
         <div id="error" class="error" style="display: none;"></div>
         <div id="charts" style="display: none;">
@@ -552,8 +533,6 @@ statsV1.get("/", async (c) => {
         
         async function loadStats() {
             showLoading();
-            const refreshBtn = document.getElementById('refreshBtn');
-            refreshBtn.disabled = true;
             
             try {
                 const response = await fetch('/stats/v1/data');
@@ -582,8 +561,6 @@ statsV1.get("/", async (c) => {
                 showCharts();
             } catch (error) {
                 showError('Error loading statistics: ' + error.message);
-            } finally {
-                refreshBtn.disabled = false;
             }
         }
         
