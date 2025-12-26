@@ -565,7 +565,7 @@ statsV1.get("/", async (c) => {
                 
                 showCharts();
             } catch (error) {
-                showError(`Error loading statistics: ${error.message}`);
+                showError('Error loading statistics: ' + error.message);
             }
         }
         
