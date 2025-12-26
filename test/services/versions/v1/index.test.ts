@@ -296,11 +296,11 @@ describe("Versions API v1", () => {
       const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      expect(response.status).toBe(200);
+      // When API fails and no cache is available, return 503
+      expect(response.status).toBe(503);
       const data: VersionsResponse = await response.json();
-
-      // Should return empty result when API fails
-      expect(Object.keys(data.result)).toHaveLength(0);
+      expect(data.error_code).toBe(503);
+      expect(data.message).toContain("Unable to fetch releases");
     });
 
     it("should handle missing composer.json", async () => {
@@ -375,12 +375,13 @@ describe("Versions API v1", () => {
         const response = await app.request("/versions/v1/0.6.0", {}, env, ctx);
         await waitOnExecutionContext(ctx);
 
-        expect(response.status).toBe(404);
+        // When both cache and API fetch fail, return 503 (service unavailable)
+        expect(response.status).toBe(503);
         const data: ApiResponse<VersionInfo | null> = await response.json();
 
         expect(data.result).toBeNull();
-        expect(data.error_code).toBe(404);
-        expect(data.message).toContain("No releases are currently available");
+        expect(data.error_code).toBe(503);
+        expect(data.message).toContain("Unable to fetch releases");
 
         // Should have been called twice (initial attempt + retry)
         expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(2);
@@ -398,12 +399,13 @@ describe("Versions API v1", () => {
         const response = await app.request("/versions/v1/latest", {}, env, ctx);
         await waitOnExecutionContext(ctx);
 
-        expect(response.status).toBe(404);
+        // When both cache and API fetch fail, return 503 (service unavailable)
+        expect(response.status).toBe(503);
         const data: ApiResponse<VersionInfo | null> = await response.json();
 
         expect(data.result).toBeNull();
-        expect(data.error_code).toBe(404);
-        expect(data.message).toContain("No releases are currently available");
+        expect(data.error_code).toBe(503);
+        expect(data.message).toContain("Unable to fetch releases");
 
         expect(vi.mocked(ghRequest)).toHaveBeenCalledTimes(2);
       });

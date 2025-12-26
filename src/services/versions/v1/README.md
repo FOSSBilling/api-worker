@@ -172,12 +172,52 @@ When a version is not found:
 }
 ```
 
+When the service is unavailable (e.g., GitHub API failure with no cached data):
+
+```json
+{
+  "result": null,
+  "error_code": 503,
+  "message": "Unable to fetch releases and no cached data available",
+  "details": {
+    "http_status": 403,
+    "error_code": "rate_limit_error"
+  }
+}
+```
+
+### Error Codes
+
+| Error Code | HTTP Status | Description                                            |
+| ---------- | ----------- | ------------------------------------------------------ |
+| 400        | 400         | Bad request (e.g., invalid version format)             |
+| 404        | 404         | Resource not found (e.g., version doesn't exist)       |
+| 500        | 500         | Failed to fetch releases (update endpoint only)        |
+| 503        | 503         | Service unavailable (GitHub API failure with no cache) |
+
+### Stale Data Indicator
+
+All API responses include a `stale` field to indicate whether cached data was used after a failed fresh data fetch:
+
+```json
+{
+  "result": { ... },
+  "error_code": 0,
+  "message": null,
+  "stale": false
+}
+```
+
+When `stale: true`, the data was retrieved from cache because the GitHub API request failed.
+
 ## Caching
 
 - Cached responses use ETags for efficient client-side caching
 - Server-side cache TTL is 24 hours
 - Cache can be manually refreshed via the `/update` endpoint
-- If GitHub API fails, the service falls back to cached data
+- If GitHub API fails, the service falls back to cached data (if available)
+- When cached data is returned after a failed fetch, `stale: true` is included in the response
+- All GitHub API failures are logged to Cloudflare logs for debugging
 
 ## GitHub Integration
 

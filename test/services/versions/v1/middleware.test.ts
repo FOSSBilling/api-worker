@@ -206,7 +206,9 @@ describe("Versions API v1 - Middleware", () => {
       const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      expect(response.headers.get("Vary")).toBe("*");
+      // When API fails, we return 503 error without Vary header
+      expect(response.status).toBe(503);
+      expect(response.headers.get("Vary")).toBeNull();
     });
   });
 

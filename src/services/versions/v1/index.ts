@@ -15,6 +15,16 @@ import {
 import { Releases, ReleaseDetails } from "./interfaces";
 import { getPlatform } from "../../../lib/middleware";
 import { ICache } from "../../../lib/interfaces";
+import { logError, logWarn, logInfo } from "../../../lib/logger";
+import {
+  GitHubError,
+  AuthError,
+  RateLimitError,
+  NetworkError,
+  ValidationError,
+  classifyGitHubError,
+  getMostCriticalError
+} from "../../../lib/github-errors";
 
 // Cache for UPDATE_TOKEN to avoid repeated KV lookups
 let updateTokenCache: string | null = null;
@@ -55,11 +65,28 @@ versionsV1.get(
   prettyJSON(),
   async (c) => {
     const platform = getPlatform(c);
-    const releases = await getReleases(
+    const result = await getReleases(
       platform.getCache("CACHE_KV"),
       platform.getEnv("GITHUB_TOKEN") || "",
       false
     );
+
+    const releases = result.releases || {};
+
+    if (Object.keys(releases).length === 0 && result.error) {
+      return c.json(
+        {
+          result: null,
+          error_code: 503,
+          message: "Unable to fetch releases and no cached data available",
+          details: {
+            http_status: result.error.httpStatus,
+            error_code: result.error.errorCode
+          }
+        },
+        503
+      );
+    }
 
     if (Object.keys(releases).length === 0) {
       c.header("Vary", "*");
@@ -68,7 +95,8 @@ versionsV1.get(
     return c.json({
       result: releases,
       error_code: 0,
-      message: null
+      message: null,
+      stale: result.source === "stale"
     });
   }
 );
@@ -83,17 +111,49 @@ versionsV1.get(
   },
   async (c) => {
     const platform = getPlatform(c);
-    const releases = await getReleases(
+    const result = await getReleases(
       platform.getCache("CACHE_KV"),
       platform.getEnv("GITHUB_TOKEN") || "",
       true
     );
-    const releaseCount = Object.keys(releases).length;
+    const releaseCount = Object.keys(result.releases).length;
+
+    if (result.error && releaseCount === 0) {
+      return c.json(
+        {
+          result: null,
+          error_code: 500,
+          message: `Failed to fetch releases: ${result.error.message}`,
+          details: {
+            http_status: result.error.httpStatus,
+            error_code: result.error.errorCode
+          },
+          stale: result.source === "stale"
+        },
+        500
+      );
+    }
+
+    if (result.error) {
+      return c.json({
+        result: `Releases cache updated with ${releaseCount} releases (some errors occurred).`,
+        error_code: 0,
+        message: result.error.message,
+        warning: result.error.message,
+        details: {
+          http_status: result.error.httpStatus,
+          error_code: result.error.errorCode
+        },
+        stale: result.source === "stale"
+      });
+    }
 
     return c.json({
       result: `Releases cache updated successfully with ${releaseCount} releases.`,
       error_code: 0,
-      message: null
+      message: null,
+      warning: null,
+      stale: false
     });
   }
 );
@@ -106,11 +166,28 @@ versionsV1.get(
   async (c) => {
     const current = c.req.param("current");
     const platform = getPlatform(c);
-    const releases = await getReleases(
+    const result = await getReleases(
       platform.getCache("CACHE_KV"),
       platform.getEnv("GITHUB_TOKEN") || "",
       false
     );
+
+    const releases = result.releases || {};
+
+    if (Object.keys(releases).length === 0 && result.error) {
+      return c.json(
+        {
+          result: null,
+          error_code: 503,
+          message: "Unable to fetch releases and no cached data available",
+          details: {
+            http_status: result.error.httpStatus,
+            error_code: result.error.errorCode
+          }
+        },
+        503
+      );
+    }
 
     if (!semverValid(current)) {
       c.status(400);
@@ -146,7 +223,8 @@ versionsV1.get(
     return c.json({
       result: assembledChangelog,
       error_code: 0,
-      message: null
+      message: null,
+      stale: result.source === "stale"
     });
   }
 );
@@ -159,17 +237,35 @@ versionsV1.get(
   async (c) => {
     const version = c.req.param("version");
     const platform = getPlatform(c);
-    let releases = await getReleases(
+    let result = await getReleases(
       platform.getCache("CACHE_KV"),
       platform.getEnv("GITHUB_TOKEN") || "",
       false
     );
 
+    let releases = result.releases || {};
+
     if (Object.keys(releases).length === 0) {
-      releases = await getReleases(
+      result = await getReleases(
         platform.getCache("CACHE_KV"),
         platform.getEnv("GITHUB_TOKEN") || "",
         true
+      );
+      releases = result.releases || {};
+    }
+
+    if (Object.keys(releases).length === 0 && result.error) {
+      return c.json(
+        {
+          result: null,
+          error_code: 503,
+          message: "Unable to fetch releases and no cached data available",
+          details: {
+            http_status: result.error.httpStatus,
+            error_code: result.error.errorCode
+          }
+        },
+        503
       );
     }
 
@@ -190,13 +286,15 @@ versionsV1.get(
       return c.json({
         result: lastKey ? releases[lastKey] : null,
         error_code: 0,
-        message: null
+        message: null,
+        stale: result.source === "stale"
       });
     } else if (version in releases) {
       return c.json({
         result: releases[version],
         error_code: 0,
-        message: null
+        message: null,
+        stale: result.source === "stale"
       });
     } else {
       c.status(404);
@@ -211,16 +309,45 @@ versionsV1.get(
 
 export default versionsV1;
 
+interface GetReleasesResult {
+  releases: Releases;
+  source: "cache" | "fresh" | "stale";
+  error?: GitHubError;
+}
+
 export async function getReleases(
   cache: ICache,
   githubToken: string,
   updateCache: boolean = false
-): Promise<Releases> {
+): Promise<GetReleasesResult> {
   const cachedReleases = await cache.get("gh-fossbilling-releases");
   const cacheTTL = 86400;
 
   if (cachedReleases && !updateCache) {
-    return JSON.parse(cachedReleases);
+    try {
+      const parsedCache = JSON.parse(cachedReleases);
+      if (parsedCache && typeof parsedCache === "object") {
+        logInfo("versions", "Serving releases from cache", {
+          cacheKey: "gh-fossbilling-releases"
+        });
+        return {
+          releases: parsedCache,
+          source: "cache"
+        };
+      }
+    } catch (parseError) {
+      logError(
+        "versions",
+        "Cache corruption detected, attempting fresh fetch",
+        {
+          cacheKey: "gh-fossbilling-releases",
+          error:
+            parseError instanceof Error
+              ? parseError.message
+              : String(parseError)
+        }
+      );
+    }
   }
 
   try {
@@ -233,38 +360,90 @@ export async function getReleases(
       per_page: 100
     });
 
+    logInfo("versions", "Successfully fetched releases from GitHub API", {
+      url: "https://api.github.com/repos/FOSSBilling/FOSSBilling/releases",
+      releaseCount: Array.isArray(result.data) ? result.data.length : 0
+    });
+
     let releases: Releases = {};
-    if (result.data && Array.isArray(result.data)) {
+    const errors: GitHubError[] = [];
+
+    if (result.data && !Array.isArray(result.data)) {
+      logWarn("versions", "Unexpected GitHub releases response format", {
+        responseType: typeof result.data
+      });
+      return {
+        releases: {},
+        source: "fresh"
+      };
+    }
+
+    if (Array.isArray(result.data)) {
       const releasePromises = result.data.map(
         async (release): Promise<[string, ReleaseDetails] | null> => {
-          const zipAsset = release.assets.find(
-            (asset) => asset.name === "FOSSBilling.zip"
-          );
-          if (!zipAsset) {
+          try {
+            const tag =
+              typeof release?.tag_name === "string" ? release.tag_name : null;
+            if (!tag) {
+              return null;
+            }
+
+            if (!semverValid(tag)) {
+              logWarn("versions", "Skipping release with invalid semver tag", {
+                tag,
+                releaseId: release?.id
+              });
+              return null;
+            }
+
+            const assets = Array.isArray(release?.assets) ? release.assets : [];
+            const zipAsset = assets.find(
+              (asset) => asset.name === "FOSSBilling.zip"
+            );
+            if (!zipAsset) {
+              return null;
+            }
+
+            const phpResult = await getReleaseMinPhpVersion(githubToken, tag);
+
+            if (phpResult.error) {
+              errors.push(phpResult.error);
+            }
+
+            const releaseDetails: ReleaseDetails = {
+              version:
+                typeof release?.name === "string" && release.name
+                  ? release.name
+                  : tag,
+              released_on:
+                typeof release?.published_at === "string"
+                  ? release.published_at
+                  : "",
+              minimum_php_version: phpResult.version,
+              download_url: zipAsset.browser_download_url,
+              size_bytes: zipAsset.size,
+              is_prerelease: Boolean(release?.prerelease),
+              github_release_id:
+                typeof release?.id === "number" ? release.id : 0,
+              changelog: typeof release?.body === "string" ? release.body : ""
+            };
+            return [tag, releaseDetails];
+          } catch (releaseError) {
+            logWarn("versions", "Skipping release due to processing error", {
+              error:
+                releaseError instanceof Error
+                  ? releaseError.message
+                  : String(releaseError)
+            });
             return null;
           }
-          const phpVersion = await getReleaseMinPhpVersion(
-            githubToken,
-            release.tag_name
-          );
-
-          const releaseDetails: ReleaseDetails = {
-            version: release.name || release.tag_name,
-            released_on: release.published_at!,
-            minimum_php_version: phpVersion,
-            download_url: zipAsset.browser_download_url,
-            size_bytes: zipAsset.size,
-            is_prerelease: release.prerelease,
-            github_release_id: release.id,
-            changelog: release.body || ""
-          };
-          return [release.tag_name, releaseDetails];
         }
       );
 
       const releaseEntries = (await Promise.all(releasePromises)).filter(
         (entry): entry is [string, ReleaseDetails] => entry !== null
       );
+
       const sortedReleases = Object.fromEntries(
         releaseEntries.sort((a, b) => semverCompare(a[0], b[0]))
       );
@@ -275,24 +454,122 @@ export async function getReleases(
       await cache.put("gh-fossbilling-releases", JSON.stringify(releases), {
         expirationTtl: cacheTTL
       });
+      logInfo("versions", "Updated releases cache", {
+        cacheKey: "gh-fossbilling-releases",
+        releaseCount: Object.keys(releases).length
+      });
     }
 
-    return releases;
-  } catch {
-    if (cachedReleases) {
-      return JSON.parse(cachedReleases);
+    const mostCriticalError = getMostCriticalError(errors) || undefined;
+
+    return {
+      releases,
+      source: "fresh",
+      error:
+        mostCriticalError instanceof ValidationError
+          ? undefined
+          : mostCriticalError
+    };
+  } catch (error) {
+    const githubError = classifyGitHubError(
+      error,
+      "https://api.github.com/repos/FOSSBilling/FOSSBilling/releases"
+    );
+
+    if (!githubError) {
+      logError("versions", "Unknown error fetching releases", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return {
+        releases: {},
+        source: "fresh"
+      };
     }
-    return {};
+
+    if (githubError instanceof ValidationError) {
+      logWarn("versions", "Invalid response received from GitHub API", {
+        message: githubError.message,
+        url: githubError.url
+      });
+      return {
+        releases: {},
+        source: "fresh"
+      };
+    }
+
+    if (
+      githubError instanceof AuthError ||
+      githubError instanceof RateLimitError
+    ) {
+      logError("versions", "Critical GitHub API error", {
+        message: githubError.message,
+        httpStatus: githubError.httpStatus,
+        url: githubError.url
+      });
+    } else {
+      logWarn("versions", "GitHub API error", {
+        message: githubError.message,
+        httpStatus: githubError.httpStatus,
+        url: githubError.url
+      });
+    }
+
+    if (cachedReleases) {
+      try {
+        const parsedCache = JSON.parse(cachedReleases);
+        logInfo("versions", "Serving stale releases from cache", {
+          cacheKey: "gh-fossbilling-releases",
+          reason: githubError.message
+        });
+        return {
+          releases: parsedCache,
+          source: "stale",
+          error: githubError
+        };
+      } catch (parseError) {
+        logError("versions", "Cache corruption detected", {
+          cacheKey: "gh-fossbilling-releases",
+          error:
+            parseError instanceof Error
+              ? parseError.message
+              : String(parseError)
+        });
+        return {
+          releases: {},
+          source: "fresh",
+          error: githubError
+        };
+      }
+    }
+
+    return {
+      releases: {},
+      source: "fresh",
+      error: githubError
+    };
   }
+}
+
+interface GetReleaseMinPhpVersionResult {
+  version: string;
+  error?: GitHubError;
 }
 
 export async function getReleaseMinPhpVersion(
   githubToken: string,
   version: string
-): Promise<string> {
+): Promise<GetReleaseMinPhpVersionResult> {
+  if (!semverValid(version)) {
+    return {
+      version: "",
+      error: new ValidationError("Invalid release tag", { version })
+    };
+  }
+
   const composerPath = semverGte(version, "0.5.0")
     ? "composer.json"
     : "src/composer.json";
+  const url = `https://api.github.com/repos/FOSSBilling/FOSSBilling/contents/${composerPath}?ref=${version}`;
 
   try {
     const result = await ghRequest(
@@ -308,21 +585,59 @@ export async function getReleaseMinPhpVersion(
       }
     );
 
-    if (result.data && "content" in result.data && result.data.content) {
+    if (
+      result.data &&
+      typeof result.data === "object" &&
+      "content" in result.data &&
+      result.data.content
+    ) {
       const content = new TextDecoder("utf-8").decode(
         Uint8Array.from(atob(result.data.content), (c) => c.charCodeAt(0))
       );
       const composerJson = JSON.parse(content);
       if (composerJson.require && composerJson.require.php) {
-        return composerJson.require.php
-          .replace("^", "")
-          .replace(">=", "")
-          .trim();
+        return {
+          version: composerJson.require.php
+            .replace("^", "")
+            .replace(">=", "")
+            .trim()
+        };
       }
     }
-  } catch {
-    // Ignore errors and return empty string
+  } catch (error) {
+    const githubError = classifyGitHubError(error, url);
+
+    if (
+      githubError instanceof RateLimitError ||
+      githubError instanceof AuthError
+    ) {
+      logError("versions", "Critical GitHub API error fetching composer.json", {
+        version,
+        url,
+        message: githubError.message,
+        httpStatus: githubError.httpStatus
+      });
+    } else if (githubError instanceof NetworkError) {
+      logWarn("versions", "Network error fetching composer.json", {
+        version,
+        url,
+        message: githubError.message
+      });
+    } else {
+      logInfo("versions", "Unable to fetch composer.json", {
+        version,
+        url,
+        message: githubError?.message || String(error)
+      });
+    }
+
+    return {
+      version: "",
+      error: githubError || undefined
+    };
   }
 
-  return "";
+  return {
+    version: ""
+  };
 }

@@ -31,7 +31,7 @@ describe("Versions API v1 - Error Handling", () => {
     await env.CACHE_KV.delete("gh-fossbilling-releases");
     await env.AUTH_KV.put("UPDATE_TOKEN", "test-update-token-12345");
 
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     (vi.mocked(ghRequest) as MockGitHubRequest).mockImplementation(
       async (route: string) => {
         if (route === "GET /repos/{owner}/{repo}/releases") {
@@ -161,9 +161,115 @@ describe("Versions API v1 - Error Handling", () => {
       );
       await waitOnExecutionContext(ctx);
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(500);
       const data = (await response.json()) as ApiResponse<string>;
-      expect(data.result).toContain("0 releases");
+      expect(data.result).toBe(null);
+      expect(data.error_code).toBe(500);
+      expect(data.message).toContain("Failed to fetch releases");
+    });
+
+    it("should handle releases without FOSSBilling.zip asset", async () => {
+      (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+        new Error("GitHub API Error")
+      );
+
+      const ctx = createExecutionContext();
+      const response = await app.request(
+        "/versions/v1/update",
+        {
+          headers: {
+            Authorization: "Bearer test-update-token-12345"
+          }
+        },
+        env,
+        ctx
+      );
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(500);
+      const data = (await response.json()) as ApiResponse<string>;
+      expect(data.result).toBe(null);
+      expect(data.error_code).toBe(500);
+      expect(data.message).toContain("Failed to fetch releases");
+    });
+
+    it("should expose error details in /update endpoint on failure", async () => {
+      const errorResponse = {
+        status: 401,
+        message: "Bad credentials"
+      };
+      (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+        errorResponse
+      );
+
+      const ctx = createExecutionContext();
+      const response = await app.request(
+        "/versions/v1/update",
+        {
+          headers: {
+            Authorization: "Bearer test-update-token-12345"
+          }
+        },
+        env,
+        ctx
+      );
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(500);
+      const data = (await response.json()) as ApiResponse<string>;
+      expect(data.error_code).toBe(500);
+      expect(data.message).toContain("Failed to fetch releases");
+      expect(data.details?.http_status).toBe(401);
+    });
+
+    it("should return 503 when GitHub API fails and no cache available", async () => {
+      await env.CACHE_KV.delete("gh-fossbilling-releases");
+      (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+        new Error("GitHub API Error")
+      );
+
+      const ctx = createExecutionContext();
+      const response = await app.request("/versions/v1", {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(503);
+      const data = (await response.json()) as ApiResponse<
+        Record<string, unknown>
+      >;
+      expect(data.error_code).toBe(503);
+      expect(data.message).toContain("Unable to fetch releases");
+      expect(data.details).toBeDefined();
+    });
+
+    it("should return stale data when GitHub API fails but cache available", async () => {
+      await env.CACHE_KV.put(
+        "gh-fossbilling-releases",
+        JSON.stringify({
+          "1.0.0": {
+            version: "1.0.0",
+            released_on: "2023-01-01T00:00:00Z",
+            minimum_php_version: "8.1",
+            download_url: "https://example.com/file.zip",
+            size_bytes: 1000,
+            is_prerelease: false,
+            github_release_id: 1,
+            changelog: "Release notes"
+          }
+        })
+      );
+      (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+        new Error("GitHub API Error")
+      );
+
+      const ctx = createExecutionContext();
+      const response = await app.request("/versions/v1", {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      const data = (await response.json()) as VersionsResponse;
+      expect(data.error_code).toBe(0);
+      expect(data.result["1.0.0"]).toBeDefined();
+      expect(data.stale).toBe(false);
     });
 
     it("should handle GitHub API returning invalid JSON", async () => {
@@ -234,24 +340,23 @@ describe("Versions API v1 - Error Handling", () => {
       const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(503);
       const data = (await response.json()) as ApiResponse<
         Record<string, unknown>
       >;
-      expect(Object.keys(data.result)).toHaveLength(0);
+      expect(data.error_code).toBe(503);
     });
   });
 
   describe("Cache Corruption", () => {
-    it("should throw error on corrupt cache data", async () => {
+    it("should attempt fresh fetch on corrupt cache", async () => {
       await env.CACHE_KV.put("gh-fossbilling-releases", "invalid json {{{");
 
       const ctx = createExecutionContext();
       const response = await app.request("/versions/v1", {}, env, ctx);
       await waitOnExecutionContext(ctx);
 
-      // Currently throws 500 - this is expected behavior until we add error handling
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(200);
     });
 
     it("should handle empty string cache by fetching fresh data", async () => {
@@ -273,7 +378,20 @@ describe("Versions API v1 - Error Handling", () => {
       await waitOnExecutionContext(ctx);
 
       // Parsing "null" string should work, returns 200
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(200);
+    });
+
+    it("should return 503 on corrupt cache and failed fresh fetch", async () => {
+      await env.CACHE_KV.put("gh-fossbilling-releases", "invalid json {{{");
+      (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
+        new Error("GitHub API Error")
+      );
+
+      const ctx = createExecutionContext();
+      const response = await app.request("/versions/v1", {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(503);
     });
   });
 

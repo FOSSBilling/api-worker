@@ -27,7 +27,7 @@ describe("Versions API v1 - Integration Tests", () => {
     await env.CACHE_KV.delete("gh-fossbilling-releases");
     await env.AUTH_KV.put("UPDATE_TOKEN", "test-update-token-12345");
 
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     setupGitHubApiMock(
       vi.mocked(ghRequest) as MockGitHubRequest,
       mockGitHubReleases,
