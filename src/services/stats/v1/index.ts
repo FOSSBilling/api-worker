@@ -220,7 +220,7 @@ statsV1.get("/", async (c) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FOSSBilling Release Statistics</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/semver@7.5.4/index.min.js"></script>
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -282,21 +282,21 @@ statsV1.get("/", async (c) => {
             <div class="charts-grid">
                 <div class="chart-container">
                     <div class="chart-title">Release Size Over Time (MB)</div>
-                    <canvas id="releaseSizeChart"></canvas>
+                    <canvas id="releaseSizeChart" aria-label="Chart showing release size over time in megabytes"></canvas>
                 </div>
                 <div class="chart-container">
                     <div class="chart-title">PHP Version Requirements</div>
-                    <canvas id="phpVersionChart"></canvas>
+                    <canvas id="phpVersionChart" aria-label="Chart showing PHP version requirements for releases"></canvas>
                 </div>
             </div>
             <div class="charts-grid">
                 <div class="chart-container">
                     <div class="chart-title">Patches Per Release (0.6.x, 0.5.x, etc.)</div>
-                    <canvas id="patchesChart"></canvas>
+                    <canvas id="patchesChart" aria-label="Chart showing number of patches per release series such as 0.6.x and 0.5.x"></canvas>
                 </div>
                 <div class="chart-container">
                     <div class="chart-title">Releases Per Year</div>
-                    <canvas id="releasesPerYearChart"></canvas>
+                    <canvas id="releasesPerYearChart" aria-label="Chart showing number of FOSSBilling releases per year"></canvas>
                 </div>
             </div>
         </div>
@@ -565,7 +565,7 @@ statsV1.get("/", async (c) => {
                 
                 showCharts();
             } catch (error) {
-                showError('Error loading statistics: ' + error.message);
+                showError(`Error loading statistics: ${error.message}`);
             }
         }
         
