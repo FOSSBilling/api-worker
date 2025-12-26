@@ -330,7 +330,7 @@ registerCachedRoute("/", async (c) => {
         
         function parsePhpVersion(phpVersion) {
             if (!phpVersion || phpVersion === 'unknown') return 0;
-            const match = phpVersion.match(new RegExp('(\\\\d+\\\\.\\\\d+)'));
+            const match = phpVersion.match(/(\\d+\\.\\d+)/);
             return match ? parseFloat(match[1]) : 0;
         }
         
