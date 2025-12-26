@@ -476,7 +476,7 @@ statsV1.get("/", async (c) => {
                         x: {
                             title: {
                                 display: true,
-                                text: 'Version Line'
+                                text: 'Version'
                             }
                         }
                     }
