@@ -29,10 +29,11 @@ We've structured the app to separate the core logic from the specific runtime en
 ### Versions (`/versions/v1`)
 
 - `GET /versions/v1` - List all releases.
-- `GET /versions/v1/latest` - Get just the newest one.
-- `GET /versions/v1/:version` - Get details for a specific version (e.g. `1.0.0`); also supports the `latest` keyword.
-- `GET /versions/v1/build_changelog/:current` - Generates a consolidated changelog from your current version up to the latest.
+- `GET /versions/v1/:version` - Get details for a specific version (e.g. `1.0.0`); use `latest` to get the newest release.
+- `GET /versions/v1/build_changelog/:current` - Generates a consolidated changelog for all releases greater than `:current` (in semantic version order).
 - `GET /versions/v1/update` - Refreshes the releases cache. Requires bearer token authentication using `Authorization: Bearer <UPDATE_TOKEN>`.
+
+All version responses include a `stale` field that indicates whether the data was served from cache after a failed fetch.
 
 ### Central Alerts (`/central-alerts/v1`)
 

@@ -37,7 +37,8 @@ GET /versions/v1
     }
   },
   "error_code": 0,
-  "message": null
+  "message": null,
+  "stale": false
 }
 ```
 
@@ -52,14 +53,27 @@ GET /versions/v1/0.6.0
 GET /versions/v1/latest
 ```
 
+**Response:** Same format as the `GET /` response with `stale` field.
+
 ### GET `/build_changelog/:current`
 
-Returns a combined changelog for all releases newer than `:current`.
+Returns a combined changelog for all releases greater than `:current` (in semantic version order).
 
 **Request:**
 
 ```http
 GET /versions/v1/build_changelog/0.5.0
+```
+
+**Response:**
+
+```json
+{
+  "result": "## 0.6.0\n- New features...\n\n## 0.5.5\n- Bug fixes...",
+  "error_code": 0,
+  "message": null,
+  "stale": false
+}
 ```
 
 ### GET `/update`
@@ -101,7 +115,7 @@ When GitHub is unavailable and no cached data exists:
 
 ## Notes
 
+- All responses include a `stale` field that is `true` when cached data is served after a failed fetch.
 - `details` includes the GitHub HTTP status and error code when available.
-- `stale: true` indicates cached data served after a failed fetch.
 - `GITHUB_TOKEN` is required for GitHub API access.
 - Releases before 0.5.0 read `src/composer.json`; newer releases use `composer.json`.
