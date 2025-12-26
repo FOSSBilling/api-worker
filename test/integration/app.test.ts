@@ -249,7 +249,12 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
 
   describe("Headers and Middleware", () => {
     it("should include CORS headers on all responses", async () => {
-      const endpoints = ["/versions/v1", "/central-alerts/v1/list", "/stats/v1/data", "/stats/v1"];
+      const endpoints = [
+        "/versions/v1",
+        "/central-alerts/v1/list",
+        "/stats/v1/data",
+        "/stats/v1"
+      ];
 
       for (const endpoint of endpoints) {
         const ctx = createExecutionContext();

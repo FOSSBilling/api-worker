@@ -50,7 +50,10 @@ function hasNoReleases(releases: Releases): boolean {
   return Object.keys(releases).length === 0;
 }
 
-function buildSuccessResponse<T>(result: T, source: "cache" | "fresh" | "stale") {
+function buildSuccessResponse<T>(
+  result: T,
+  source: "cache" | "fresh" | "stale"
+) {
   return {
     result,
     error_code: 0,
@@ -81,10 +84,11 @@ function parseVersionLine(version: string): string {
 
 function aggregateStats(releases: Releases): StatsData {
   const versions = Object.keys(releases).sort(semverCompare);
-  
+
   const releaseSizes = versions.map((version) => ({
     version,
-    size_mb: Math.round((releases[version].size_bytes / 1024 / 1024) * 100) / 100,
+    size_mb:
+      Math.round((releases[version].size_bytes / 1024 / 1024) * 100) / 100,
     released_on: releases[version].released_on
   }));
 
@@ -97,7 +101,8 @@ function aggregateStats(releases: Releases): StatsData {
   const patchesByVersionLine: Record<string, number> = {};
   versions.forEach((version) => {
     const versionLine = parseVersionLine(version);
-    patchesByVersionLine[versionLine] = (patchesByVersionLine[versionLine] || 0) + 1;
+    patchesByVersionLine[versionLine] =
+      (patchesByVersionLine[versionLine] || 0) + 1;
   });
   const patchesPerRelease = Object.entries(patchesByVersionLine)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -144,7 +149,7 @@ async function getStats(
       const parsedCache = JSON.parse(cachedStats);
       if (parsedCache && typeof parsedCache === "object") {
         logInfo("stats", "Serving stats from cache", {
-          cacheKey: STATS_CACHE_KEY,
+          cacheKey: STATS_CACHE_KEY
         });
         return {
           stats: parsedCache as StatsData,
@@ -161,7 +166,7 @@ async function getStats(
   }
 
   const result = await getReleases(cache, githubToken, updateCache);
-  
+
   if (hasNoReleases(result.releases) && result.error) {
     return {
       stats: {
@@ -176,7 +181,7 @@ async function getStats(
   }
 
   const stats = aggregateStats(result.releases);
-  
+
   if (!hasNoReleases(result.releases)) {
     await cache.put(STATS_CACHE_KEY, JSON.stringify(stats), {
       expirationTtl: STATS_CACHE_TTL
