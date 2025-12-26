@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 
 - `src/app/index.ts` is the worker entrypoint and route wiring for Hono.
-- Feature logic lives in `src/services/` (for example `central-alerts/v1`, `versions/v1`) and should stay runtime-agnostic.
+- Feature logic lives in `src/services/` (for example `central-alerts/v1`, `versions/v1`, `stats/v1`) and should stay runtime-agnostic.
 - Platform interfaces and adapters are in `src/lib/` with Cloudflare and Node implementations under `src/lib/adapters/`.
 - Tests mirror the source layout under `test/`, with shared helpers in `test/utils/` and mocks in `test/mocks/`.
 - Runtime/config files include `wrangler.jsonc`, `worker-configuration.d.ts`, `tsconfig.json`, `eslint.config.ts`, and `prettier.config.ts`.
@@ -43,3 +43,12 @@
 - Local secrets go in `.dev.vars` (for example `GITHUB_TOKEN="..."`).
 - Bindings for D1/KV are defined in `wrangler.jsonc`; keep names aligned with `CloudflareBindings`.
 - Use Wrangler secrets for production tokens instead of committing them.
+
+## Stats API v1
+
+- Provides release statistics visualization for FOSSBilling versions.
+- HTML endpoint: `GET /stats/v1/` - Returns a client-side rendered page with Chart.js visualizations.
+- Data endpoint: `GET /stats/v1/data` - Returns aggregated statistics data for the charts.
+- Charts include: Release Size Graph (line), PHP Version Requirements (line), Patches Per Release (bar), and Releases Per Year (bar).
+- Stats data is cached with a TTL of 24 hours and reuses release data from the versions service.
+- Service follows the same caching patterns as versions API, including graceful handling of GitHub API errors.
