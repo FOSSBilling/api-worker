@@ -421,7 +421,7 @@ export async function getReleases(
     );
 
     const sortedReleases = Object.fromEntries(
-      releaseEntries.sort((a, b) => semverCompare(a[0], b[0]))
+      releaseEntries.sort((a, b) => semverCompare(b[0], a[0]))
     );
     releases = sortedReleases;
 

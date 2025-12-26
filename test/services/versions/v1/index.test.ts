@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { compare as semverCompare } from "semver";
 import {
   env,
   createExecutionContext,
@@ -74,6 +75,25 @@ describe("Versions API v1", () => {
       expect(typeof data.result).toBe("object");
       expect(Object.keys(data.result)).toContain("0.5.0");
       expect(Object.keys(data.result)).toContain("0.6.0");
+    });
+
+    it("should return releases sorted from latest to earliest", async () => {
+      const ctx = createExecutionContext();
+      const response = await app.request("/versions/v1", {}, env, ctx);
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      const data: VersionsResponse = await response.json();
+
+      const versionKeys = Object.keys(data.result);
+      expect(versionKeys.length).toBeGreaterThan(1);
+
+      for (let i = 0; i < versionKeys.length - 1; i++) {
+        const current = versionKeys[i];
+        const next = versionKeys[i + 1];
+        const compare = semverCompare(current, next);
+        expect(compare).toBeGreaterThanOrEqual(0);
+      }
     });
 
     it("should cache releases data", async () => {
