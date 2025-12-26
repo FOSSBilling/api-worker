@@ -105,7 +105,11 @@ function aggregateStats(releases: Releases): StatsData {
       (patchesByVersionLine[versionLine] || 0) + 1;
   });
   const patchesPerRelease = Object.entries(patchesByVersionLine)
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => {
+      const aNormalized = a.replace(".x", ".0");
+      const bNormalized = b.replace(".x", ".0");
+      return semverCompare(aNormalized, bNormalized);
+    })
     .map(([version_line, patch_count]) => ({
       version_line,
       patch_count
