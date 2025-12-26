@@ -1,5 +1,5 @@
 import { bearerAuth } from "hono/bearer-auth";
-import { Hono } from "hono";
+import { Hono, type Context, type Handler } from "hono";
 import { cache } from "hono/cache";
 import { cors } from "hono/cors";
 import { etag } from "hono/etag";
@@ -26,10 +26,18 @@ import {
   getMostCriticalError
 } from "../../../lib/github-errors";
 
+const RELEASE_CACHE_KEY = "gh-fossbilling-releases";
+const RELEASES_CACHE_NAME = "versions-api-v1";
+const RELEASES_CACHE_CONTROL = "max-age: 86400";
+const RELEASE_CACHE_TTL = 86400;
+const RELEASES_URL =
+  "https://api.github.com/repos/FOSSBilling/FOSSBilling/releases";
+type VersionsEnv = { Bindings: CloudflareBindings };
+
 // Cache for UPDATE_TOKEN to avoid repeated KV lookups
 let updateTokenCache: string | null = null;
 
-const versionsV1 = new Hono<{ Bindings: CloudflareBindings }>();
+const versionsV1 = new Hono<VersionsEnv>();
 
 versionsV1.use(
   "/*",
@@ -55,51 +63,76 @@ async function getUpdateToken(cache: ICache): Promise<string> {
   return token;
 }
 
-versionsV1.get(
-  "/",
-  cache({
-    cacheName: "versions-api-v1",
-    cacheControl: "max-age: 86400"
-  }),
-  etag(),
-  prettyJSON(),
-  async (c) => {
-    const platform = getPlatform(c);
-    const result = await getReleases(
-      platform.getCache("CACHE_KV"),
-      platform.getEnv("GITHUB_TOKEN") || "",
-      false
-    );
+function registerCachedRoute<P extends string>(
+  path: P,
+  handler: Handler<VersionsEnv, P>
+) {
+  return versionsV1.get(
+    path,
+    cache({
+      cacheName: RELEASES_CACHE_NAME,
+      cacheControl: RELEASES_CACHE_CONTROL
+    }),
+    etag(),
+    prettyJSON(),
+    handler
+  );
+}
 
-    const releases = result.releases;
+async function loadReleases(
+  c: Context<VersionsEnv>,
+  updateCache: boolean = false
+): Promise<GetReleasesResult> {
+  const platform = getPlatform(c);
+  return getReleases(
+    platform.getCache("CACHE_KV"),
+    platform.getEnv("GITHUB_TOKEN") || "",
+    updateCache
+  );
+}
 
-    if (Object.keys(releases).length === 0 && result.error) {
-      return c.json(
-        {
-          result: null,
-          error_code: 503,
-          message: "Unable to fetch releases and no cached data available",
-          details: {
-            http_status: result.error.httpStatus,
-            error_code: result.error.errorCode
-          }
-        },
-        503
-      );
+function hasNoReleases(releases: Releases): boolean {
+  return Object.keys(releases).length === 0;
+}
+
+function buildUnavailableResponse(error: GitHubError) {
+  return {
+    result: null,
+    error_code: 503,
+    message: "Unable to fetch releases and no cached data available",
+    details: {
+      http_status: error.httpStatus,
+      error_code: error.errorCode
     }
+  };
+}
 
-    if (Object.keys(releases).length === 0) {
-      c.header("Vary", "*");
-    }
+function buildSuccessResponse<T>(
+  result: T,
+  source: GetReleasesResult["source"]
+) {
+  return {
+    result,
+    error_code: 0,
+    message: null,
+    stale: source === "stale"
+  };
+}
 
-    return c.json({
-      result: releases,
-      error_code: 0,
-      message: null,
-      stale: result.source === "stale"
-    });
+registerCachedRoute("/", async (c) => {
+  const result = await loadReleases(c);
+  const releases = result.releases;
+
+  if (hasNoReleases(releases) && result.error) {
+    return c.json(buildUnavailableResponse(result.error), 503);
   }
-);
+
+  if (hasNoReleases(releases)) {
+    c.header("Vary", "*");
+  }
+
+  return c.json(buildSuccessResponse(releases, result.source));
+});
 
 versionsV1.get(
   "/update",
@@ -158,194 +191,117 @@ versionsV1.get(
   }
 );
 
-versionsV1.get(
-  "/build_changelog/:current",
-  cache({ cacheName: "versions-api-v1", cacheControl: "max-age: 86400" }),
-  etag(),
-  prettyJSON(),
-  async (c) => {
-    const current = c.req.param("current");
-    const platform = getPlatform(c);
-    const result = await getReleases(
-      platform.getCache("CACHE_KV"),
-      platform.getEnv("GITHUB_TOKEN") || "",
-      false
-    );
+registerCachedRoute("/build_changelog/:current", async (c) => {
+  const current = c.req.param("current");
+  const result = await loadReleases(c);
 
-    const releases = result.releases;
+  const releases = result.releases;
 
-    if (Object.keys(releases).length === 0 && result.error) {
-      return c.json(
-        {
-          result: null,
-          error_code: 503,
-          message: "Unable to fetch releases and no cached data available",
-          details: {
-            http_status: result.error.httpStatus,
-            error_code: result.error.errorCode
-          }
-        },
-        503
-      );
-    }
+  if (hasNoReleases(releases) && result.error) {
+    return c.json(buildUnavailableResponse(result.error), 503);
+  }
 
-    if (!semverValid(current)) {
-      c.status(400);
-      return c.json({
-        result: null,
-        error_code: 400,
-        message: `'${current}' is not a valid semantic version.`
-      });
-    }
+  if (!current || !semverValid(current)) {
+    c.status(400);
+    return c.json({
+      result: null,
+      error_code: 400,
+      message: `'${current}' is not a valid semantic version.`
+    });
+  }
 
-    const sortedReleaseKeys = Object.keys(releases).sort((a, b) =>
-      semverCompare(b, a)
-    );
-    const completedChangelog: string[] = [];
+  const sortedReleaseKeys = Object.keys(releases).sort((a, b) =>
+    semverCompare(b, a)
+  );
+  const completedChangelog: string[] = [];
 
-    for (const version of sortedReleaseKeys) {
-      if (semverGt(version, current)) {
-        let changelog = releases[version].changelog;
+  for (const version of sortedReleaseKeys) {
+    if (semverGt(version, current)) {
+      let changelog = releases[version].changelog;
 
-        if (!changelog) {
-          changelog = `## ${version}\n`;
-          changelog += "The changelogs for this release appear to be missing.";
-        }
-
-        completedChangelog.push(changelog);
-      } else {
-        break;
+      if (!changelog) {
+        changelog = `## ${version}\n`;
+        changelog += "The changelogs for this release appear to be missing.";
       }
-    }
 
-    const assembledChangelog = completedChangelog.join("\n");
-
-    return c.json({
-      result: assembledChangelog,
-      error_code: 0,
-      message: null,
-      stale: result.source === "stale"
-    });
-  }
-);
-
-versionsV1.get(
-  "/count",
-  cache({ cacheName: "versions-api-v1", cacheControl: "max-age: 86400" }),
-  etag(),
-  prettyJSON(),
-  async (c) => {
-    const platform = getPlatform(c);
-    const result = await getReleases(
-      platform.getCache("CACHE_KV"),
-      platform.getEnv("GITHUB_TOKEN") || "",
-      false
-    );
-
-    const releases = result.releases;
-    const releaseCount = Object.keys(releases).length;
-
-    if (releaseCount === 0 && result.error) {
-      return c.json(
-        {
-          result: null,
-          error_code: 503,
-          message: "Unable to fetch releases and no cached data available",
-          details: {
-            http_status: result.error.httpStatus,
-            error_code: result.error.errorCode
-          }
-        },
-        503
-      );
-    }
-
-    return c.json({
-      result: releaseCount,
-      error_code: 0,
-      message: null,
-      stale: result.source === "stale"
-    });
-  }
-);
-
-versionsV1.get(
-  "/:version",
-  cache({ cacheName: "versions-api-v1", cacheControl: "max-age: 86400" }),
-  etag(),
-  prettyJSON(),
-  async (c) => {
-    const version = c.req.param("version");
-    const platform = getPlatform(c);
-    let result = await getReleases(
-      platform.getCache("CACHE_KV"),
-      platform.getEnv("GITHUB_TOKEN") || "",
-      false
-    );
-
-    let releases = result.releases;
-
-    if (Object.keys(releases).length === 0) {
-      result = await getReleases(
-        platform.getCache("CACHE_KV"),
-        platform.getEnv("GITHUB_TOKEN") || "",
-        true
-      );
-      releases = result.releases;
-    }
-
-    if (Object.keys(releases).length === 0 && result.error) {
-      return c.json(
-        {
-          result: null,
-          error_code: 503,
-          message: "Unable to fetch releases and no cached data available",
-          details: {
-            http_status: result.error.httpStatus,
-            error_code: result.error.errorCode
-          }
-        },
-        503
-      );
-    }
-
-    if (Object.keys(releases).length === 0) {
-      c.status(404);
-      return c.json({
-        result: null,
-        error_code: 404,
-        message:
-          "No releases are currently available. Please try again later or check the GitHub releases page."
-      });
-    }
-
-    if (version === "latest") {
-      const sortedKeys = Object.keys(releases).sort(semverCompare);
-      const lastKey = sortedKeys.at(-1);
-
-      return c.json({
-        result: lastKey ? releases[lastKey] : null,
-        error_code: 0,
-        message: null,
-        stale: result.source === "stale"
-      });
-    } else if (version in releases) {
-      return c.json({
-        result: releases[version],
-        error_code: 0,
-        message: null,
-        stale: result.source === "stale"
-      });
+      completedChangelog.push(changelog);
     } else {
-      c.status(404);
-      return c.json({
-        result: null,
-        error_code: 404,
-        message: `FOSSBilling version ${version} does not appear to exist.`
-      });
+      break;
     }
   }
-);
+
+  const assembledChangelog = completedChangelog.join("\n");
+
+  return c.json(buildSuccessResponse(assembledChangelog, result.source));
+});
+
+registerCachedRoute("/count", async (c) => {
+  const result = await loadReleases(c);
+
+  const releases = result.releases;
+  const releaseCount = Object.keys(releases).length;
+
+  if (releaseCount === 0 && result.error) {
+    return c.json(buildUnavailableResponse(result.error), 503);
+  }
+
+  return c.json(buildSuccessResponse(releaseCount, result.source));
+});
+
+registerCachedRoute("/:version", async (c) => {
+  const version = c.req.param("version");
+  let result = await loadReleases(c);
+
+  if (!version) {
+    c.status(400);
+    return c.json({
+      result: null,
+      error_code: 400,
+      message: "Version parameter is required."
+    });
+  }
+
+  let releases = result.releases;
+
+  if (hasNoReleases(releases)) {
+    result = await loadReleases(c, true);
+    releases = result.releases;
+  }
+
+  if (hasNoReleases(releases) && result.error) {
+    return c.json(buildUnavailableResponse(result.error), 503);
+  }
+
+  if (hasNoReleases(releases)) {
+    c.status(404);
+    return c.json({
+      result: null,
+      error_code: 404,
+      message:
+        "No releases are currently available. Please try again later or check the GitHub releases page."
+    });
+  }
+
+  if (version === "latest") {
+    const sortedKeys = Object.keys(releases).sort(semverCompare);
+    const lastKey = sortedKeys.at(-1);
+
+    return c.json(
+      buildSuccessResponse(lastKey ? releases[lastKey] : null, result.source)
+    );
+  }
+
+  if (version in releases) {
+    return c.json(buildSuccessResponse(releases[version], result.source));
+  }
+
+  c.status(404);
+  return c.json({
+    result: null,
+    error_code: 404,
+    message: `FOSSBilling version ${version} does not appear to exist.`
+  });
+});
 
 export default versionsV1;
 
@@ -364,33 +320,21 @@ export async function getReleases(
   githubToken: string,
   updateCache: boolean = false
 ): Promise<GetReleasesResult> {
-  const cachedReleases = await cache.get("gh-fossbilling-releases");
-  const cacheTTL = 86400;
+  const cachedReleases = await cache.get(RELEASE_CACHE_KEY);
 
   if (cachedReleases && !updateCache) {
-    try {
-      const parsedCache = JSON.parse(cachedReleases);
-      if (parsedCache && typeof parsedCache === "object") {
-        logInfo("versions", "Serving releases from cache", {
-          cacheKey: "gh-fossbilling-releases"
-        });
-        return {
-          releases: parsedCache,
-          source: "cache"
-        };
-      }
-    } catch (parseError) {
-      logError(
-        "versions",
-        "Cache corruption detected, attempting fresh fetch",
-        {
-          cacheKey: "gh-fossbilling-releases",
-          error:
-            parseError instanceof Error
-              ? parseError.message
-              : String(parseError)
-        }
-      );
+    const parsedCache = parseCachedReleases(
+      cachedReleases,
+      "Cache corruption detected, attempting fresh fetch"
+    );
+    if (parsedCache) {
+      logInfo("versions", "Serving releases from cache", {
+        cacheKey: RELEASE_CACHE_KEY
+      });
+      return {
+        releases: parsedCache,
+        source: "cache"
+      };
     }
   }
 
@@ -415,7 +359,7 @@ export async function getReleases(
     }
 
     logInfo("versions", "Successfully fetched releases from GitHub API", {
-      url: "https://api.github.com/repos/FOSSBilling/FOSSBilling/releases",
+      url: RELEASES_URL,
       releaseCount: result.data.length
     });
 
@@ -470,11 +414,11 @@ export async function getReleases(
     releases = sortedReleases;
 
     if (Object.keys(releases).length > 0) {
-      await cache.put("gh-fossbilling-releases", JSON.stringify(releases), {
-        expirationTtl: cacheTTL
+      await cache.put(RELEASE_CACHE_KEY, JSON.stringify(releases), {
+        expirationTtl: RELEASE_CACHE_TTL
       });
       logInfo("versions", "Updated releases cache", {
-        cacheKey: "gh-fossbilling-releases",
+        cacheKey: RELEASE_CACHE_KEY,
         releaseCount: Object.keys(releases).length
       });
     }
@@ -490,10 +434,7 @@ export async function getReleases(
           : mostCriticalError
     };
   } catch (error) {
-    const githubError = classifyGitHubError(
-      error,
-      "https://api.github.com/repos/FOSSBilling/FOSSBilling/releases"
-    );
+    const githubError = classifyGitHubError(error, RELEASES_URL);
 
     if (githubError instanceof ValidationError) {
       logWarn("versions", "Invalid response received from GitHub API", {
@@ -524,10 +465,13 @@ export async function getReleases(
     }
 
     if (cachedReleases) {
-      try {
-        const parsedCache = JSON.parse(cachedReleases);
+      const parsedCache = parseCachedReleases(
+        cachedReleases,
+        "Cache corruption detected"
+      );
+      if (parsedCache) {
         logInfo("versions", "Serving stale releases from cache", {
-          cacheKey: "gh-fossbilling-releases",
+          cacheKey: RELEASE_CACHE_KEY,
           reason: githubError.message
         });
         return {
@@ -535,20 +479,12 @@ export async function getReleases(
           source: "stale",
           error: githubError
         };
-      } catch (parseError) {
-        logError("versions", "Cache corruption detected", {
-          cacheKey: "gh-fossbilling-releases",
-          error:
-            parseError instanceof Error
-              ? parseError.message
-              : String(parseError)
-        });
-        return {
-          releases: {},
-          source: "fresh",
-          error: githubError
-        };
       }
+      return {
+        releases: {},
+        source: "fresh",
+        error: githubError
+      };
     }
 
     return {
@@ -557,6 +493,26 @@ export async function getReleases(
       error: githubError
     };
   }
+}
+
+function parseCachedReleases(
+  cachedReleases: string,
+  logMessage: string
+): Releases | null {
+  try {
+    const parsedCache = JSON.parse(cachedReleases);
+    if (parsedCache && typeof parsedCache === "object") {
+      return parsedCache as Releases;
+    }
+  } catch (parseError) {
+    logError("versions", logMessage, {
+      cacheKey: RELEASE_CACHE_KEY,
+      error:
+        parseError instanceof Error ? parseError.message : String(parseError)
+    });
+  }
+
+  return null;
 }
 
 interface GetReleaseMinPhpVersionResult {

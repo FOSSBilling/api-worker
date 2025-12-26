@@ -15,7 +15,11 @@ export interface IDatabase {
 
 export interface IPreparedStatement {
   bind(...params: unknown[]): IPreparedStatement;
-  all<T = unknown>(): Promise<{ results?: T[]; success: boolean }>;
+  all<T = unknown>(): Promise<{
+    results?: T[];
+    success: boolean;
+    error?: string;
+  }>;
   first<T = unknown>(): Promise<T | null>;
   run(): Promise<{
     success: boolean;

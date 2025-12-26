@@ -47,7 +47,11 @@ class SQLiteStatement implements IPreparedStatement {
     return this;
   }
 
-  async all<T = unknown>(): Promise<{ results?: T[]; success: boolean }> {
+  async all<T = unknown>(): Promise<{
+    results?: T[];
+    success: boolean;
+    error?: string;
+  }> {
     const results = this.statement.all(...this.params);
 
     return {

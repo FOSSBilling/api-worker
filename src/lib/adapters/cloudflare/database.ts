@@ -26,11 +26,16 @@ class CloudflareD1Statement implements IPreparedStatement {
     return this;
   }
 
-  async all<T = unknown>(): Promise<{ results?: T[]; success: boolean }> {
+  async all<T = unknown>(): Promise<{
+    results?: T[];
+    success: boolean;
+    error?: string;
+  }> {
     const result = await this.stmt.all<T>();
     return {
       results: result.results,
-      success: true
+      success: result.success,
+      error: result.error ? String(result.error) : undefined
     };
   }
 
