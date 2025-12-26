@@ -156,6 +156,75 @@ describe("Stats API v1", () => {
       expect(data.result).toHaveProperty("patchesPerRelease", []);
       expect(data.result).toHaveProperty("releasesPerYear", []);
     });
+
+    it("should sort version lines using semver comparison", async () => {
+      const mockReleasesWithHighVersions = [
+        ...mockGitHubReleases,
+        {
+          id: 1005,
+          tag_name: "0.9.0",
+          name: "0.9.0",
+          published_at: "2023-09-01T00:00:00Z",
+          prerelease: false,
+          body: "## 0.9.0\n- Major update",
+          assets: [
+            {
+              name: "FOSSBilling.zip",
+              browser_download_url:
+                "https://github.com/FOSSBilling/FOSSBilling/releases/download/0.9.0/FOSSBilling.zip",
+              size: 1040000
+            }
+          ]
+        },
+        {
+          id: 1006,
+          tag_name: "0.10.0",
+          name: "0.10.0",
+          published_at: "2023-10-01T00:00:00Z",
+          prerelease: false,
+          body: "## 0.10.0\n- Double digit release",
+          assets: [
+            {
+              name: "FOSSBilling.zip",
+              browser_download_url:
+                "https://github.com/FOSSBilling/FOSSBilling/releases/download/0.10.0/FOSSBilling.zip",
+              size: 1050000
+            }
+          ]
+        }
+      ];
+
+      vi.mocked(ghRequest).mockResolvedValue({
+        data: mockReleasesWithHighVersions,
+        headers: {},
+        status: 200,
+        url: "https://api.github.com/repos/FOSSBilling/FOSSBilling/releases"
+      });
+
+      await env.CACHE_KV.delete("gh-fossbilling-releases");
+      await env.CACHE_KV.delete("fossbilling-stats-data");
+
+      const ctx = createExecutionContext();
+      const response = await app.fetch(
+        new Request("http://localhost/stats/v1/data"),
+        env,
+        ctx
+      );
+      await waitOnExecutionContext(ctx);
+
+      expect(response.status).toBe(200);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data: any = await response.json();
+
+      expect(data.result.patchesPerRelease).toBeDefined();
+      expect(Array.isArray(data.result.patchesPerRelease)).toBe(true);
+
+      const versionLines = data.result.patchesPerRelease.map(
+        (item: { version_line: string }) => item.version_line
+      );
+
+      expect(versionLines).toEqual(["0.5.x", "0.6.x", "0.9.x", "0.10.x"]);
+    });
   });
 
   describe("GET /stats/v1/", () => {
