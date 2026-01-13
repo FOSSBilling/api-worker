@@ -14,8 +14,20 @@ import {
   setupGitHubApiMock
 } from "../../../utils/mock-helpers";
 import { MockGitHubRequest } from "../../../utils/test-types";
+import type { StatsData } from "../../../../src/services/stats/v1/interfaces";
 
 import { request as ghRequest } from "@octokit/request";
+
+interface StatsApiResponse {
+  result: StatsData | null;
+  error_code: number;
+  message: string | null;
+  stale?: boolean;
+  details?: {
+    http_status?: number;
+    error_code?: string;
+  };
+}
 
 vi.mock("@octokit/request", () => ({
   request: vi.fn()
@@ -55,48 +67,51 @@ describe("Stats API v1", () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = await response.json();
+      const data = (await response.json()) as StatsApiResponse;
 
       expect(data).toHaveProperty("result");
       expect(data).toHaveProperty("error_code", 0);
       expect(data.error_code).toBe(0);
+      expect(data.result).not.toBeNull();
 
-      expect(data.result).toHaveProperty("releaseSizes");
-      expect(data.result).toHaveProperty("phpVersions");
-      expect(data.result).toHaveProperty("patchesPerRelease");
-      expect(data.result).toHaveProperty("releasesPerYear");
+      // After asserting result is not null, we can safely use the non-null assertion operator
+      const result = data.result!;
 
-      expect(Array.isArray(data.result.releaseSizes)).toBe(true);
-      expect(Array.isArray(data.result.phpVersions)).toBe(true);
-      expect(Array.isArray(data.result.patchesPerRelease)).toBe(true);
-      expect(Array.isArray(data.result.releasesPerYear)).toBe(true);
+      expect(result).toHaveProperty("releaseSizes");
+      expect(result).toHaveProperty("phpVersions");
+      expect(result).toHaveProperty("patchesPerRelease");
+      expect(result).toHaveProperty("releasesPerYear");
 
-      if (data.result.releaseSizes.length > 0) {
-        expect(data.result.releaseSizes[0]).toHaveProperty("version");
-        expect(data.result.releaseSizes[0]).toHaveProperty("size_mb");
-        expect(data.result.releaseSizes[0]).toHaveProperty("released_on");
-        expect(typeof data.result.releaseSizes[0].size_mb).toBe("number");
+      expect(Array.isArray(result.releaseSizes)).toBe(true);
+      expect(Array.isArray(result.phpVersions)).toBe(true);
+      expect(Array.isArray(result.patchesPerRelease)).toBe(true);
+      expect(Array.isArray(result.releasesPerYear)).toBe(true);
+
+      if (result.releaseSizes.length > 0) {
+        expect(result.releaseSizes[0]).toHaveProperty("version");
+        expect(result.releaseSizes[0]).toHaveProperty("size_mb");
+        expect(result.releaseSizes[0]).toHaveProperty("released_on");
+        expect(typeof result.releaseSizes[0].size_mb).toBe("number");
       }
 
-      if (data.result.phpVersions.length > 0) {
-        expect(data.result.phpVersions[0]).toHaveProperty("version");
-        expect(data.result.phpVersions[0]).toHaveProperty("php_version");
-        expect(data.result.phpVersions[0]).toHaveProperty("released_on");
+      if (result.phpVersions.length > 0) {
+        expect(result.phpVersions[0]).toHaveProperty("version");
+        expect(result.phpVersions[0]).toHaveProperty("php_version");
+        expect(result.phpVersions[0]).toHaveProperty("released_on");
       }
 
-      if (data.result.patchesPerRelease.length > 0) {
-        expect(data.result.patchesPerRelease[0]).toHaveProperty("version_line");
-        expect(data.result.patchesPerRelease[0]).toHaveProperty("patch_count");
-        expect(typeof data.result.patchesPerRelease[0].patch_count).toBe(
+      if (result.patchesPerRelease.length > 0) {
+        expect(result.patchesPerRelease[0]).toHaveProperty("version_line");
+        expect(result.patchesPerRelease[0]).toHaveProperty("patch_count");
+        expect(typeof result.patchesPerRelease[0].patch_count).toBe(
           "number"
         );
       }
 
-      if (data.result.releasesPerYear.length > 0) {
-        expect(data.result.releasesPerYear[0]).toHaveProperty("year");
-        expect(data.result.releasesPerYear[0]).toHaveProperty("release_count");
-        expect(typeof data.result.releasesPerYear[0].release_count).toBe(
+      if (result.releasesPerYear.length > 0) {
+        expect(result.releasesPerYear[0]).toHaveProperty("year");
+        expect(result.releasesPerYear[0]).toHaveProperty("release_count");
+        expect(typeof result.releasesPerYear[0].release_count).toBe(
           "number"
         );
       }
@@ -112,8 +127,7 @@ describe("Stats API v1", () => {
       await waitOnExecutionContext(ctx1);
 
       expect(response1.status).toBe(200);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data1: any = await response1.json();
+      const data1 = (await response1.json()) as StatsApiResponse;
 
       const ctx2 = createExecutionContext();
       const response2 = await app.fetch(
@@ -124,8 +138,7 @@ describe("Stats API v1", () => {
       await waitOnExecutionContext(ctx2);
 
       expect(response2.status).toBe(200);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data2: any = await response2.json();
+      const data2 = (await response2.json()) as StatsApiResponse;
 
       expect(data1.result).toEqual(data2.result);
       expect(data2.stale).toBe(false);
@@ -148,13 +161,13 @@ describe("Stats API v1", () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = await response.json();
+      const data = (await response.json()) as StatsApiResponse;
 
-      expect(data.result).toHaveProperty("releaseSizes", []);
-      expect(data.result).toHaveProperty("phpVersions", []);
-      expect(data.result).toHaveProperty("patchesPerRelease", []);
-      expect(data.result).toHaveProperty("releasesPerYear", []);
+      expect(data.result).not.toBeNull();
+      expect(data.result!).toHaveProperty("releaseSizes", []);
+      expect(data.result!).toHaveProperty("phpVersions", []);
+      expect(data.result!).toHaveProperty("patchesPerRelease", []);
+      expect(data.result!).toHaveProperty("releasesPerYear", []);
     });
 
     it("should sort version lines using semver comparison", async () => {
@@ -213,14 +226,14 @@ describe("Stats API v1", () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = await response.json();
+      const data = (await response.json()) as StatsApiResponse;
 
-      expect(data.result.patchesPerRelease).toBeDefined();
-      expect(Array.isArray(data.result.patchesPerRelease)).toBe(true);
+      expect(data.result).not.toBeNull();
+      expect(data.result!.patchesPerRelease).toBeDefined();
+      expect(Array.isArray(data.result!.patchesPerRelease)).toBe(true);
 
-      const versionLines = data.result.patchesPerRelease.map(
-        (item: { version_line: string }) => item.version_line
+      const versionLines = data.result!.patchesPerRelease.map(
+        (item) => item.version_line
       );
 
       expect(versionLines).toEqual(["0.5.x", "0.6.x", "0.9.x", "0.10.x"]);
