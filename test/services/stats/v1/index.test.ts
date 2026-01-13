@@ -233,7 +233,7 @@ describe("Stats API v1", () => {
       expect(Array.isArray(data.result!.patchesPerRelease)).toBe(true);
 
       const versionLines = data.result!.patchesPerRelease.map(
-        (item: { version_line: string }) => item.version_line
+        (item) => item.version_line
       );
 
       expect(versionLines).toEqual(["0.5.x", "0.6.x", "0.9.x", "0.10.x"]);
