@@ -14,8 +14,16 @@ import {
   setupGitHubApiMock
 } from "../../../utils/mock-helpers";
 import { MockGitHubRequest } from "../../../utils/test-types";
+import type { StatsData } from "../../../../src/services/stats/v1/interfaces";
 
 import { request as ghRequest } from "@octokit/request";
+
+interface StatsApiResponse {
+  result: StatsData;
+  error_code: number;
+  message: string | null;
+  stale?: boolean;
+}
 
 vi.mock("@octokit/request", () => ({
   request: vi.fn()
@@ -55,8 +63,7 @@ describe("Stats API v1", () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = await response.json();
+      const data = (await response.json()) as StatsApiResponse;
 
       expect(data).toHaveProperty("result");
       expect(data).toHaveProperty("error_code", 0);
@@ -112,8 +119,7 @@ describe("Stats API v1", () => {
       await waitOnExecutionContext(ctx1);
 
       expect(response1.status).toBe(200);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data1: any = await response1.json();
+      const data1 = (await response1.json()) as StatsApiResponse;
 
       const ctx2 = createExecutionContext();
       const response2 = await app.fetch(
@@ -124,8 +130,7 @@ describe("Stats API v1", () => {
       await waitOnExecutionContext(ctx2);
 
       expect(response2.status).toBe(200);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data2: any = await response2.json();
+      const data2 = (await response2.json()) as StatsApiResponse;
 
       expect(data1.result).toEqual(data2.result);
       expect(data2.stale).toBe(false);
@@ -148,8 +153,7 @@ describe("Stats API v1", () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = await response.json();
+      const data = (await response.json()) as StatsApiResponse;
 
       expect(data.result).toHaveProperty("releaseSizes", []);
       expect(data.result).toHaveProperty("phpVersions", []);
@@ -213,8 +217,7 @@ describe("Stats API v1", () => {
       await waitOnExecutionContext(ctx);
 
       expect(response.status).toBe(200);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data: any = await response.json();
+      const data = (await response.json()) as StatsApiResponse;
 
       expect(data.result.patchesPerRelease).toBeDefined();
       expect(Array.isArray(data.result.patchesPerRelease)).toBe(true);
