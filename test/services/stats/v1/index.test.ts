@@ -24,8 +24,8 @@ interface StatsApiResponse {
   message: string | null;
   stale?: boolean;
   details?: {
-    http_status: number;
-    error_code: string;
+    http_status?: number;
+    error_code?: string;
   };
 }
 
@@ -74,7 +74,7 @@ describe("Stats API v1", () => {
       expect(data.error_code).toBe(0);
       expect(data.result).not.toBeNull();
 
-      // Type guard: after asserting result is not null, TypeScript knows it's StatsData
+      // After asserting result is not null, we can safely use the non-null assertion operator
       const result = data.result!;
 
       expect(result).toHaveProperty("releaseSizes");
