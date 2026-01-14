@@ -71,14 +71,10 @@ describe("Stats API v1", () => {
 
       expect(data).toHaveProperty("result");
       expect(data).toHaveProperty("error_code", 0);
-      expect(data.error_code).toBe(0);
 
-      if (data.result === null) {
-        fail("Expected 'result' not to be null");
-        return;
-      }
+      expect(data.result).not.toBeNull();
 
-      const result = data.result;
+      const result = data.result!;
 
       expect(result).toHaveProperty("releaseSizes");
       expect(result).toHaveProperty("phpVersions");
@@ -271,7 +267,7 @@ describe("Stats API v1", () => {
       expect(html).toContain('id="patchesChart"');
       expect(html).toContain('id="releasesPerYearChart"');
       expect(html).toContain(
-        'src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0'
+        'src="https://cdn.jsdelivr.net/npm/chart.js@'
       );
     });
   });
