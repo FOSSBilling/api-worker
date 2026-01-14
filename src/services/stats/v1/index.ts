@@ -20,18 +20,12 @@ const STATS_CACHE_NAME = "stats-api-v1";
 const STATS_CACHE_CONTROL = "max-age: 86400";
 const STATS_CACHE_TTL = 86400;
 
-const ALLOWED_ORIGINS = [
-  "https://fossbilling.org",
-  "https://www.fossbilling.org"
-];
-
 const statsV1 = new Hono<StatsEnv>();
 
 statsV1.use(
   "/*",
   cors({
-    origin: (origin) =>
-      origin && ALLOWED_ORIGINS.includes(origin) ? origin : null
+    origin: "*"
   }),
   trimTrailingSlash()
 );
