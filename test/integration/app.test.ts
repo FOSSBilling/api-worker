@@ -277,6 +277,7 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
         expect(responseWithoutOrigin.headers.get("Access-Control-Allow-Origin")).toBeNull();
 
         // Request with allowed origin should return that origin
+        const ctxAllowed = createExecutionContext();
         const responseWithAllowedOrigin = await app.request(
           endpoint,
           {
@@ -285,14 +286,15 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
             }
           },
           env,
-          createExecutionContext()
+          ctxAllowed
         );
-        await waitOnExecutionContext(createExecutionContext());
+        await waitOnExecutionContext(ctxAllowed);
         expect(responseWithAllowedOrigin.headers.get("Access-Control-Allow-Origin")).toBe(
           "https://fossbilling.org"
         );
 
         // Request with disallowed origin should return null
+        const ctxDisallowed = createExecutionContext();
         const responseWithDisallowedOrigin = await app.request(
           endpoint,
           {
@@ -301,9 +303,9 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
             }
           },
           env,
-          createExecutionContext()
+          ctxDisallowed
         );
-        await waitOnExecutionContext(createExecutionContext());
+        await waitOnExecutionContext(ctxDisallowed);
         expect(responseWithDisallowedOrigin.headers.get("Access-Control-Allow-Origin")).toBeNull();
       }
     });
