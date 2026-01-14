@@ -72,10 +72,13 @@ describe("Stats API v1", () => {
       expect(data).toHaveProperty("result");
       expect(data).toHaveProperty("error_code", 0);
       expect(data.error_code).toBe(0);
-      expect(data.result).not.toBeNull();
 
-      // After asserting result is not null, we can safely use the non-null assertion operator
-      const result = data.result!;
+      if (data.result === null) {
+        fail("Expected 'result' not to be null");
+        return;
+      }
+
+      const result = data.result;
 
       expect(result).toHaveProperty("releaseSizes");
       expect(result).toHaveProperty("phpVersions");
@@ -164,10 +167,14 @@ describe("Stats API v1", () => {
       const data = (await response.json()) as StatsApiResponse;
 
       expect(data.result).not.toBeNull();
-      expect(data.result!).toHaveProperty("releaseSizes", []);
-      expect(data.result!).toHaveProperty("phpVersions", []);
-      expect(data.result!).toHaveProperty("patchesPerRelease", []);
-      expect(data.result!).toHaveProperty("releasesPerYear", []);
+      expect(data.result).toEqual(
+        expect.objectContaining({
+          releaseSizes: [],
+          phpVersions: [],
+          patchesPerRelease: [],
+          releasesPerYear: []
+        })
+      );
     });
 
     it("should sort version lines using semver comparison", async () => {
@@ -229,10 +236,14 @@ describe("Stats API v1", () => {
       const data = (await response.json()) as StatsApiResponse;
 
       expect(data.result).not.toBeNull();
-      expect(data.result!.patchesPerRelease).toBeDefined();
-      expect(Array.isArray(data.result!.patchesPerRelease)).toBe(true);
+      if (!data.result) {
+        return;
+      }
+      
+      expect(data.result.patchesPerRelease).toBeDefined();
+      expect(Array.isArray(data.result.patchesPerRelease)).toBe(true);
 
-      const versionLines = data.result!.patchesPerRelease.map(
+      const versionLines = data.result.patchesPerRelease.map(
         (item) => item.version_line
       );
 
