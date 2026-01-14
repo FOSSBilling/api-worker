@@ -251,9 +251,7 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
     it("should include CORS headers on all responses", async () => {
       const endpoints = [
         "/versions/v1",
-        "/central-alerts/v1/list",
-        "/stats/v1/data",
-        "/stats/v1"
+        "/central-alerts/v1/list"
       ];
 
       for (const endpoint of endpoints) {
@@ -262,6 +260,51 @@ describe("FOSSBilling API Worker - Full App Integration", () => {
         await waitOnExecutionContext(ctx);
 
         expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+      }
+    });
+
+    it("should include CORS headers on stats endpoints with allowed origins", async () => {
+      const statsEndpoints = [
+        "/stats/v1/data",
+        "/stats/v1"
+      ];
+
+      for (const endpoint of statsEndpoints) {
+        const ctx = createExecutionContext();
+        // Request without Origin header should return null
+        const responseWithoutOrigin = await app.request(endpoint, {}, env, ctx);
+        await waitOnExecutionContext(ctx);
+        expect(responseWithoutOrigin.headers.get("Access-Control-Allow-Origin")).toBeNull();
+
+        // Request with allowed origin should return that origin
+        const responseWithAllowedOrigin = await app.request(
+          endpoint,
+          {
+            headers: {
+              Origin: "https://fossbilling.org"
+            }
+          },
+          env,
+          createExecutionContext()
+        );
+        await waitOnExecutionContext(createExecutionContext());
+        expect(responseWithAllowedOrigin.headers.get("Access-Control-Allow-Origin")).toBe(
+          "https://fossbilling.org"
+        );
+
+        // Request with disallowed origin should return null
+        const responseWithDisallowedOrigin = await app.request(
+          endpoint,
+          {
+            headers: {
+              Origin: "https://evil.com"
+            }
+          },
+          env,
+          createExecutionContext()
+        );
+        await waitOnExecutionContext(createExecutionContext());
+        expect(responseWithDisallowedOrigin.headers.get("Access-Control-Allow-Origin")).toBeNull();
       }
     });
 

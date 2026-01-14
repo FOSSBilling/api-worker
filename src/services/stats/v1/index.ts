@@ -20,12 +20,18 @@ const STATS_CACHE_NAME = "stats-api-v1";
 const STATS_CACHE_CONTROL = "max-age: 86400";
 const STATS_CACHE_TTL = 86400;
 
+const ALLOWED_ORIGINS = [
+  "https://fossbilling.org",
+  "https://www.fossbilling.org"
+];
+
 const statsV1 = new Hono<StatsEnv>();
 
 statsV1.use(
   "/*",
   cors({
-    origin: "*"
+    origin: (origin) =>
+      origin && ALLOWED_ORIGINS.includes(origin) ? origin : null
   }),
   trimTrailingSlash()
 );
@@ -216,6 +222,7 @@ registerCachedRoute("/data", async (c) => {
   return c.json(buildSuccessResponse(result.stats, result.source));
 });
 
+/* eslint-disable no-useless-escape */
 registerCachedRoute("/", async (c) => {
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -223,7 +230,7 @@ registerCachedRoute("/", async (c) => {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FOSSBilling Release Statistics</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js" integrity="sha256-w44wdlkamna5Z9JxfutBsqcJLqVY5rrBTn0xXIFXh0g=" crossorigin="anonymous"></script>
 
     <style>
         body {
@@ -330,7 +337,7 @@ registerCachedRoute("/", async (c) => {
         
         function parsePhpVersion(phpVersion) {
             if (!phpVersion || phpVersion === 'unknown') return 0;
-            const match = phpVersion.match(/(\\d+\\.\\d+)/);
+            const match = phpVersion.match(/(\d+\.\d+)/);
             return match ? parseFloat(match[1]) : 0;
         }
         
@@ -544,7 +551,8 @@ registerCachedRoute("/", async (c) => {
             showLoading();
             
             try {
-                const response = await fetch('/stats/v1/data');
+                const statsUrl = window.location.origin + '/stats/v1/data';
+                const response = await fetch(statsUrl);
                 
                 if (!response.ok) {
                     throw new Error('Failed to load statistics');
@@ -581,5 +589,6 @@ registerCachedRoute("/", async (c) => {
 
   return c.html(html);
 });
+/* eslint-enable no-useless-escape */
 
 export default statsV1;
