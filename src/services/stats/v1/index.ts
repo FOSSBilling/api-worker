@@ -222,7 +222,6 @@ registerCachedRoute("/data", async (c) => {
   return c.json(buildSuccessResponse(result.stats, result.source));
 });
 
-/* eslint-disable no-useless-escape */
 registerCachedRoute("/", async (c) => {
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -337,7 +336,7 @@ registerCachedRoute("/", async (c) => {
         
         function parsePhpVersion(phpVersion) {
             if (!phpVersion || phpVersion === 'unknown') return 0;
-            const match = phpVersion.match(/(\d+\.\d+)/);
+            const match = phpVersion.match(/(\\d+\\.\\d+)/);
             return match ? parseFloat(match[1]) : 0;
         }
         
@@ -589,6 +588,5 @@ registerCachedRoute("/", async (c) => {
 
   return c.html(html);
 });
-/* eslint-enable no-useless-escape */
 
 export default statsV1;
