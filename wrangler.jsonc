@@ -45,7 +45,7 @@
       "zone_name": "fossbilling.net",
       "custom_domain": true
     }
-  ]
+  ],
   /**
    * Environment Variables
    * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
