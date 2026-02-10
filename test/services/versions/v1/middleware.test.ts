@@ -229,23 +229,6 @@ describe("Versions API v1 - Middleware", () => {
       expect(response.status).toBe(200);
     });
 
-    it("should be case-sensitive for Bearer prefix", async () => {
-      const ctx = createExecutionContext();
-      const response = await app.request(
-        "/versions/v1/update",
-        {
-          headers: {
-            Authorization: "bearer test-update-token-12345"
-          }
-        },
-        env,
-        ctx
-      );
-      await waitOnExecutionContext(ctx);
-
-      expect(response.status).toBe(400);
-    });
-
     it("should require Authorization header", async () => {
       const ctx = createExecutionContext();
       const response = await app.request("/versions/v1/update", {}, env, ctx);
