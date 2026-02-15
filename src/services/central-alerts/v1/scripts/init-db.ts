@@ -8,6 +8,11 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+function shellEscapeDoubleQuoted(input: string): string {
+  // Escape backslashes first, then double quotes, for safe inclusion in a double-quoted shell string
+  return input.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 function runWranglerCommand(command: string): string {
   return execSync(command, { encoding: "utf8", stdio: "pipe" });
 }
@@ -25,7 +30,7 @@ async function initializeDatabase(): Promise<void> {
     .map((stmt) => stmt + ";");
 
   for (const statement of statements) {
-    const command = `echo "${statement.replace(/"/g, '\\"')}" | npx wrangler d1 execute api-worker_central-alerts --local`;
+    const command = `echo "${shellEscapeDoubleQuoted(statement)}" | npx wrangler d1 execute api-worker_central-alerts --local`;
     runWranglerCommand(command);
   }
 
