@@ -36,11 +36,8 @@ export class MockD1Database implements D1Database {
   }
 
   prepare(query: string): D1PreparedStatement {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const mockDb = this;
-
     return {
-      bind(...params: unknown[]) {
+      bind: (...params: unknown[]) => {
         return {
           async all(): Promise<D1Result<DatabaseAlert>> {
             // Simulate getting alerts by version
@@ -82,7 +79,7 @@ export class MockD1Database implements D1Database {
             // Simulate getting alert by ID
             if (query.includes("WHERE id = ?")) {
               const id = params[0];
-              const alert = mockDb.alerts.find((a) => a.id === id);
+              const alert = this.alerts.find((a) => a.id === id);
               return {
                 success: true,
                 results: alert ? [alert] : [],
@@ -119,7 +116,7 @@ export class MockD1Database implements D1Database {
             // Simulate getting first result (for getAlertById)
             if (query.includes("WHERE id = ?")) {
               const id = params[0] as string;
-              const alert = mockDb.alerts.find((a) => a.id === id);
+              const alert = this.alerts.find((a) => a.id === id);
               return (alert as T | undefined) || null;
             }
 
