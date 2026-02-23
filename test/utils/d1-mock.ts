@@ -176,7 +176,7 @@ export class MockD1Database implements D1Database {
                   size_after: 0,
                   rows_read: 1,
                   rows_written: wasDeleted ? 1 : 0,
-                  changed_db: true
+                  changed_db: wasDeleted
                 }
               };
             }
