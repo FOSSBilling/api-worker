@@ -20,8 +20,8 @@ function compareVersions(a: string, b: string): number {
   const length = Math.max(aParts.length, bParts.length);
 
   for (let i = 0; i < length; i++) {
-    const aNum = Number.isNaN(aParts[i]) ? 0 : aParts[i] ?? 0;
-    const bNum = Number.isNaN(bParts[i]) ? 0 : bParts[i] ?? 0;
+    const aNum = aParts[i] ?? 0;
+    const bNum = bParts[i] ?? 0;
 
     if (aNum < bNum) {
       return -1;
@@ -48,6 +48,10 @@ function isVersionInRange(
     compareVersions(version, minVersion) >= 0 &&
     compareVersions(version, maxVersion) <= 0
   );
+}
+
+function notImplementedInMock(methodName: string): Error {
+  return new Error(`MockD1Database.${methodName}() is not implemented for tests`);
 }
 
 export class MockD1Database implements D1Database {
@@ -288,28 +292,28 @@ export class MockD1Database implements D1Database {
   }
 
   dump(): Promise<ArrayBuffer> {
-    throw new Error("dump() not implemented in mock");
+    throw notImplementedInMock("dump");
   }
 
   batch<T = unknown>(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _statements: D1PreparedStatement[]
   ): Promise<D1Result<T>[]> {
-    throw new Error("batch() not implemented in mock");
+    throw notImplementedInMock("batch");
   }
 
   exec(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _query: string
   ): Promise<D1ExecResult> {
-    throw new Error("exec() not implemented in mock");
+    throw notImplementedInMock("exec");
   }
 
   withSession(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _constraintOrBookmark?: string
   ): D1DatabaseSession {
-    throw new Error("withSession() not implemented in mock");
+    throw notImplementedInMock("withSession");
   }
 }
 
