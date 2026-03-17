@@ -123,7 +123,7 @@ export class MockD1Database implements D1Database {
 
             // Simulate getting alert by ID
             if (query.includes("WHERE id = ?")) {
-              const id = params[0];
+              const id = String(params[0]);
               const alert = this.alerts.find((a) => a.id === id);
               return {
                 success: true,
