@@ -15,8 +15,17 @@ type DatabaseAlert = Omit<CentralAlert, "buttons"> & {
  * Returns -1 if a < b, 0 if a == b, 1 if a > b.
  */
 function compareVersions(a: string, b: string): number {
-  const aParts = a.split(".").map((part) => parseInt(part, 10));
-  const bParts = b.split(".").map((part) => parseInt(part, 10));
+  const safeParseInt = (part: string): number => {
+    const trimmed = part.trim();
+    if (trimmed === "") {
+      return 0;
+    }
+    const parsed = parseInt(trimmed, 10);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const aParts = a.split(".").map((part) => safeParseInt(part));
+  const bParts = b.split(".").map((part) => safeParseInt(part));
   const length = Math.max(aParts.length, bParts.length);
 
   for (let i = 0; i < length; i++) {
