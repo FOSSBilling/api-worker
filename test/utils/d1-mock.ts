@@ -10,6 +10,46 @@ type DatabaseAlert = Omit<CentralAlert, "buttons"> & {
   buttons?: string; // JSON string in database
 };
 
+/**
+ * Compare two semantic version strings (e.g. "1.2.3") numerically.
+ * Returns -1 if a < b, 0 if a == b, 1 if a > b.
+ */
+function compareVersions(a: string, b: string): number {
+  const aParts = a.split(".").map((part) => parseInt(part, 10));
+  const bParts = b.split(".").map((part) => parseInt(part, 10));
+  const length = Math.max(aParts.length, bParts.length);
+
+  for (let i = 0; i < length; i++) {
+    const aNum = Number.isNaN(aParts[i]) ? 0 : aParts[i] ?? 0;
+    const bNum = Number.isNaN(bParts[i]) ? 0 : bParts[i] ?? 0;
+
+    if (aNum < bNum) {
+      return -1;
+    }
+    if (aNum > bNum) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+/**
+ * Check whether `version` is within [minVersion, maxVersion] inclusive
+ * using semantic version comparison. Only simple numeric versions (x.y.z)
+ * are supported; pre-release or build metadata suffixes are not handled.
+ */
+function isVersionInRange(
+  version: string,
+  minVersion: string,
+  maxVersion: string
+): boolean {
+  return (
+    compareVersions(version, minVersion) >= 0 &&
+    compareVersions(version, maxVersion) <= 0
+  );
+}
+
 export class MockD1Database implements D1Database {
   private alerts: DatabaseAlert[] = [];
 
@@ -36,20 +76,17 @@ export class MockD1Database implements D1Database {
   }
 
   prepare(query: string): D1PreparedStatement {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const mockDb = this;
-
     return {
-      bind(...params: unknown[]) {
+      bind: (...params: unknown[]) => {
         return {
-          async all(): Promise<D1Result<DatabaseAlert>> {
+          all: async (): Promise<D1Result<DatabaseAlert>> => {
             // Simulate getting alerts by version
             if (
               query.includes("min_fossbilling_version") &&
               query.includes("max_fossbilling_version")
             ) {
               const version = params[0] as string;
-              const filteredAlerts = mockDb.alerts.filter((alert) => {
+              const filteredAlerts = this.alerts.filter((alert) => {
                 // Check if it's the universal alert (applies to all versions)
                 if (
                   alert.min_fossbilling_version === "0.0.0" &&
@@ -58,9 +95,10 @@ export class MockD1Database implements D1Database {
                   return true;
                 }
                 // For version comparison, we need to check if version is within the alert's range
-                return (
-                  version >= alert.min_fossbilling_version &&
-                  version <= alert.max_fossbilling_version
+                return isVersionInRange(
+                  version,
+                  alert.min_fossbilling_version,
+                  alert.max_fossbilling_version
                 );
               });
               return {
@@ -82,7 +120,7 @@ export class MockD1Database implements D1Database {
             // Simulate getting alert by ID
             if (query.includes("WHERE id = ?")) {
               const id = params[0];
-              const alert = mockDb.alerts.find((a) => a.id === id);
+              const alert = this.alerts.find((a) => a.id === id);
               return {
                 success: true,
                 results: alert ? [alert] : [],
@@ -115,18 +153,18 @@ export class MockD1Database implements D1Database {
             };
           },
 
-          async first<T = Record<string, unknown>>(): Promise<T | null> {
+          first: async <T = Record<string, unknown>>(): Promise<T | null> => {
             // Simulate getting first result (for getAlertById)
             if (query.includes("WHERE id = ?")) {
               const id = params[0] as string;
-              const alert = mockDb.alerts.find((a) => a.id === id);
+              const alert = this.alerts.find((a) => a.id === id);
               return (alert as T | undefined) || null;
             }
 
             return null;
           },
 
-          async run(): Promise<D1Response> {
+          run: async (): Promise<D1Response> => {
             // Simulate INSERT operations
             if (query.includes("INSERT INTO central_alerts")) {
               const newAlert: DatabaseAlert = {
@@ -143,12 +181,12 @@ export class MockD1Database implements D1Database {
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               };
-              mockDb.alerts.push(newAlert);
+              this.alerts.push(newAlert);
               return {
                 success: true,
                 meta: {
                   duration: 0,
-                  last_row_id: mockDb.alerts.length,
+                  last_row_id: this.alerts.length,
                   changes: 1,
                   served_by: "mock",
                   size_after: 0,
@@ -162,9 +200,9 @@ export class MockD1Database implements D1Database {
             // Simulate DELETE operations
             if (query.includes("DELETE FROM central_alerts")) {
               const id = params[0] as string;
-              const initialLength = mockDb.alerts.length;
-              mockDb.alerts = mockDb.alerts.filter((a) => a.id !== id);
-              const wasDeleted = mockDb.alerts.length < initialLength;
+              const initialLength = this.alerts.length;
+              this.alerts = this.alerts.filter((a) => a.id !== id);
+              const wasDeleted = this.alerts.length < initialLength;
 
               return {
                 success: true,
@@ -176,7 +214,7 @@ export class MockD1Database implements D1Database {
                   size_after: 0,
                   rows_read: 1,
                   rows_written: wasDeleted ? 1 : 0,
-                  changed_db: true
+                  changed_db: wasDeleted
                 }
               };
             }
@@ -198,7 +236,7 @@ export class MockD1Database implements D1Database {
         };
       },
 
-      async all(): Promise<D1Result<DatabaseAlert>> {
+      all: async (): Promise<D1Result<DatabaseAlert>> => {
         // Simulate getting all alerts
         if (
           query.includes("FROM central_alerts") &&
@@ -207,7 +245,7 @@ export class MockD1Database implements D1Database {
         ) {
           return {
             success: true,
-            results: mockDb.alerts,
+            results: this.alerts,
             meta: {
               duration: 0,
               last_row_id: 0,
@@ -237,7 +275,7 @@ export class MockD1Database implements D1Database {
         };
       },
 
-      async first<T = Record<string, unknown>>(): Promise<T | null> {
+      first: async <T = Record<string, unknown>>(): Promise<T | null> => {
         // Simulate getting first result (for getAlertById without bind)
         if (query.includes("WHERE id = ?")) {
           // This shouldn't be called without bind, but handle it

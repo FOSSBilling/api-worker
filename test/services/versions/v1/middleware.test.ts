@@ -145,13 +145,14 @@ describe("Versions API v1 - Middleware", () => {
       const response1 = await app.request("/versions/v1", {}, env, ctx1);
       await waitOnExecutionContext(ctx1);
       const etag = response1.headers.get("ETag");
+      expect(etag).toBeTruthy();
 
       const ctx2 = createExecutionContext();
       const response2 = await app.request(
         "/versions/v1",
         {
           headers: {
-            "If-None-Match": etag!
+            "If-None-Match": etag as string
           }
         },
         env,
@@ -197,7 +198,7 @@ describe("Versions API v1 - Middleware", () => {
       expect(cacheControl).toBeTruthy();
     });
 
-    it("should set Vary header when returning empty results", async () => {
+    it("should not set Vary header when GitHub API fails", async () => {
       (vi.mocked(ghRequest) as MockGitHubRequest).mockRejectedValueOnce(
         new Error("GitHub API Error")
       );
