@@ -15,8 +15,17 @@ type DatabaseAlert = Omit<CentralAlert, "buttons"> & {
  * Returns -1 if a < b, 0 if a == b, 1 if a > b.
  */
 function compareVersions(a: string, b: string): number {
-  const aParts = a.split(".").map((part) => parseInt(part, 10));
-  const bParts = b.split(".").map((part) => parseInt(part, 10));
+  const safeParseInt = (part: string): number => {
+    const trimmed = part.trim();
+    if (trimmed === "") {
+      return 0;
+    }
+    const parsed = parseInt(trimmed, 10);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
+
+  const aParts = a.split(".").map((part) => safeParseInt(part));
+  const bParts = b.split(".").map((part) => safeParseInt(part));
   const length = Math.max(aParts.length, bParts.length);
 
   for (let i = 0; i < length; i++) {
@@ -123,7 +132,7 @@ export class MockD1Database implements D1Database {
 
             // Simulate getting alert by ID
             if (query.includes("WHERE id = ?")) {
-              const id = params[0];
+              const id = String(params[0]);
               const alert = this.alerts.find((a) => a.id === id);
               return {
                 success: true,
@@ -206,18 +215,19 @@ export class MockD1Database implements D1Database {
               const id = params[0] as string;
               const initialLength = this.alerts.length;
               this.alerts = this.alerts.filter((a) => a.id !== id);
-              const wasDeleted = this.alerts.length < initialLength;
+              const deletedCount = initialLength - this.alerts.length;
+              const wasDeleted = deletedCount > 0;
 
               return {
                 success: true,
                 meta: {
                   duration: 0,
                   last_row_id: 0,
-                  changes: wasDeleted ? 1 : 0,
+                  changes: deletedCount,
                   served_by: "mock",
                   size_after: 0,
                   rows_read: 1,
-                  rows_written: wasDeleted ? 1 : 0,
+                  rows_written: deletedCount,
                   changed_db: wasDeleted
                 }
               };
