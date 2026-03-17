@@ -206,18 +206,19 @@ export class MockD1Database implements D1Database {
               const id = params[0] as string;
               const initialLength = this.alerts.length;
               this.alerts = this.alerts.filter((a) => a.id !== id);
-              const wasDeleted = this.alerts.length < initialLength;
+              const deletedCount = initialLength - this.alerts.length;
+              const wasDeleted = deletedCount > 0;
 
               return {
                 success: true,
                 meta: {
                   duration: 0,
                   last_row_id: 0,
-                  changes: wasDeleted ? 1 : 0,
+                  changes: deletedCount,
                   served_by: "mock",
                   size_after: 0,
                   rows_read: 1,
-                  rows_written: wasDeleted ? 1 : 0,
+                  rows_written: deletedCount,
                   changed_db: wasDeleted
                 }
               };
