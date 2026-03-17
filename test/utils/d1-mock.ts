@@ -20,8 +20,8 @@ function compareVersions(a: string, b: string): number {
   const length = Math.max(aParts.length, bParts.length);
 
   for (let i = 0; i < length; i++) {
-    const aNum = Number.isNaN(aParts[i]) ? 0 : aParts[i] ?? 0;
-    const bNum = Number.isNaN(bParts[i]) ? 0 : bParts[i] ?? 0;
+    const aNum = aParts[i] ?? 0;
+    const bNum = bParts[i] ?? 0;
 
     if (aNum < bNum) {
       return -1;
