@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { compare as semverCompare } from "semver";
 import {
-  env,
   createExecutionContext,
   waitOnExecutionContext
 } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import app from "../../../../src/app";
 
 import {

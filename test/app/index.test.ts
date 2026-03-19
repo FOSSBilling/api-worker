@@ -5,8 +5,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { env } from "cloudflare:workers";
 import {
-  env,
   createExecutionContext,
   waitOnExecutionContext
 } from "cloudflare:test";

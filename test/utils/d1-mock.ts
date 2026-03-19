@@ -60,7 +60,9 @@ function isVersionInRange(
 }
 
 function notImplementedInMock(methodName: string): Error {
-  return new Error(`MockD1Database.${methodName}() is not implemented for tests`);
+  return new Error(
+    `MockD1Database.${methodName}() is not implemented for tests`
+  );
 }
 
 export class MockD1Database implements D1Database {

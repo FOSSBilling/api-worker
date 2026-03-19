@@ -1,6 +1,19 @@
-import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
+import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+import { defineConfig } from "vitest/config";
 
-export default defineWorkersConfig({
+export default defineConfig({
+  plugins: [
+    cloudflareTest({
+      wrangler: { configPath: "./wrangler.jsonc" },
+      miniflare: {
+        // Add test environment variables
+        bindings: {
+          GITHUB_TOKEN: "test-github-token",
+          UPDATE_TOKEN: "test-update-token"
+        }
+      }
+    })
+  ],
   test: {
     // Exclude Node.js tests from Cloudflare Workers environment
     exclude: ["**/node_modules/**", "**/test/lib/adapters/node/**"],
@@ -23,19 +36,6 @@ export default defineWorkersConfig({
       },
       include: ["src/**", "test/**/*.test.ts"],
       exclude: ["src/lib/adapters/node/**"]
-    },
-
-    poolOptions: {
-      workers: {
-        wrangler: { configPath: "./wrangler.jsonc" },
-        miniflare: {
-          // Add test environment variables
-          bindings: {
-            GITHUB_TOKEN: "test-github-token",
-            UPDATE_TOKEN: "test-update-token"
-          }
-        }
-      }
     }
   }
 });

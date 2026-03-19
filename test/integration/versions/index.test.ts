@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
-  env,
   createExecutionContext,
   waitOnExecutionContext
 } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import app from "../../../src/app";
 import {
   mockGitHubReleases,

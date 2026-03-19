@@ -84,6 +84,7 @@ npm install
    ```
 
 4. Spin up the dev server:
+
    ```bash
    npm run dev
    ```

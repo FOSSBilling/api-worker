@@ -102,17 +102,13 @@ describe("Stats API v1", () => {
       if (result.patchesPerRelease.length > 0) {
         expect(result.patchesPerRelease[0]).toHaveProperty("version_line");
         expect(result.patchesPerRelease[0]).toHaveProperty("patch_count");
-        expect(typeof result.patchesPerRelease[0].patch_count).toBe(
-          "number"
-        );
+        expect(typeof result.patchesPerRelease[0].patch_count).toBe("number");
       }
 
       if (result.releasesPerYear.length > 0) {
         expect(result.releasesPerYear[0]).toHaveProperty("year");
         expect(result.releasesPerYear[0]).toHaveProperty("release_count");
-        expect(typeof result.releasesPerYear[0].release_count).toBe(
-          "number"
-        );
+        expect(typeof result.releasesPerYear[0].release_count).toBe("number");
       }
     });
 
@@ -235,7 +231,7 @@ describe("Stats API v1", () => {
       if (!data.result) {
         return;
       }
-      
+
       expect(data.result.patchesPerRelease).toBeDefined();
       expect(Array.isArray(data.result.patchesPerRelease)).toBe(true);
 
@@ -266,9 +262,7 @@ describe("Stats API v1", () => {
       expect(html).toContain('id="phpVersionChart"');
       expect(html).toContain('id="patchesChart"');
       expect(html).toContain('id="releasesPerYearChart"');
-      expect(html).toContain(
-        'src="https://cdn.jsdelivr.net/npm/chart.js@'
-      );
+      expect(html).toContain('src="https://cdn.jsdelivr.net/npm/chart.js@');
     });
   });
 });

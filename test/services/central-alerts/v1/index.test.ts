@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  env,
   createExecutionContext,
   waitOnExecutionContext
 } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import app from "../../../../src/app";
 import { mockD1Database } from "../../../utils/d1-mock";
 import type { CentralAlertsResponse } from "../../../utils/test-types";
