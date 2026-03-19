@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
-  env,
   createExecutionContext,
-  waitOnExecutionContext
+  waitOnExecutionContext,
 } from "cloudflare:test";
+import { env } from "cloudflare:workers";
 import app from "../../src/app/index";
 import { mockGitHubReleases, mockComposerJson } from "../mocks/github-releases";
 import { setupGitHubApiMock } from "../utils/mock-helpers";
