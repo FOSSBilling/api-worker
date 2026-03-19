@@ -12,8 +12,8 @@ export default defineConfig({
           UPDATE_TOKEN: "test-update-token"
         }
       }
-    }
-  )],
+    })
+  ],
   test: {
     // Exclude Node.js tests from Cloudflare Workers environment
     exclude: ["**/node_modules/**", "**/test/lib/adapters/node/**"],

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   createExecutionContext,
-  waitOnExecutionContext,
+  waitOnExecutionContext
 } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import app from "../../src/app/index";
