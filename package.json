@@ -32,7 +32,7 @@
     "@vitest/coverage-istanbul": "4.1.0",
     "eslint": "10.1.0",
     "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-jest": "29.15.0",
+    "eslint-plugin-jest": "29.15.1",
     "jiti": "2.6.1",
     "prettier": "3.8.1",
     "tsx": "4.21.0",
