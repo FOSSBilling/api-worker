@@ -1,37 +1,48 @@
 #!/usr/bin/env node
 
-import { execSync } from "child_process";
-import { readFileSync } from "fs";
+import { spawnSync } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-function shellEscapeDoubleQuoted(input: string): string {
-  // Escape backslashes first, then double quotes, for safe inclusion in a double-quoted shell string
-  return input.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-}
+function runWranglerCommand(args: string[]): void {
+  const result = spawnSync(
+    "npx",
+    ["wrangler", "d1", "execute", "api_central-alerts", "--local", ...args],
+    {
+      encoding: "utf8",
+      stdio: "pipe"
+    }
+  );
 
-function runWranglerCommand(command: string): string {
-  return execSync(command, { encoding: "utf8", stdio: "pipe" });
+  if (result.error) {
+    throw result.error;
+  }
+
+  if (result.status !== 0) {
+    throw new Error(
+      [
+        `Wrangler command failed: npx ${["wrangler", "d1", "execute", "api_central-alerts", "--local", ...args].join(" ")}`,
+        result.stderr.trim() ? `stderr: ${result.stderr.trim()}` : "",
+        result.stdout.trim() ? `stdout: ${result.stdout.trim()}` : ""
+      ]
+        .filter(Boolean)
+        .join("\n")
+    );
+  }
 }
 
 async function initializeDatabase(): Promise<void> {
   console.log("Initializing Central Alerts Database...");
 
   const initSQLPath = join(__dirname, "..", "db", "init.sql");
-  const initSQL = readFileSync(initSQLPath, "utf8");
-
-  const statements = initSQL
-    .split(";")
-    .map((stmt) => stmt.trim())
-    .filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"))
-    .map((stmt) => stmt + ";");
-
-  for (const statement of statements) {
-    const command = `echo "${shellEscapeDoubleQuoted(statement)}" | npx wrangler d1 execute api_central-alerts --local`;
-    runWranglerCommand(command);
+  try {
+    runWranglerCommand(["--file", initSQLPath]);
+  } catch (error) {
+    console.error(`Failed SQL file: ${initSQLPath}`);
+    throw error;
   }
 
   console.log("Database initialization completed successfully!");
