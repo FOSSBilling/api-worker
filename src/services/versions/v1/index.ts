@@ -125,6 +125,23 @@ function buildSuccessResponse<T>(
   };
 }
 
+interface ReleaseAsset {
+  name: string;
+  browser_download_url: string;
+  size: number;
+}
+
+function getReleaseZipAsset(
+  assets: ReleaseAsset[],
+  tag: string
+): ReleaseAsset | undefined {
+  return assets.find(
+    (asset) =>
+      asset.name === "FOSSBilling.zip" ||
+      asset.name === `FOSSBilling-${tag}.zip`
+  );
+}
+
 registerCachedRoute("/", async (c) => {
   const result = await loadReleases(c);
   const releases = result.releases;
@@ -387,9 +404,7 @@ export async function getReleases(
           return null;
         }
 
-        const zipAsset = release.assets.find(
-          (asset) => asset.name === "FOSSBilling.zip"
-        );
+        const zipAsset = getReleaseZipAsset(release.assets, tag);
         if (!zipAsset) {
           return null;
         }
